@@ -2,7 +2,7 @@
 
 **Modern e-commerce website for men's underwear with admin dashboard**
 
-🌐 **Live Site**: [bumable.gt.tc](http://bumable.gt.tc)
+🌐 **Live Site**: Coming Soon
 
 ## 🚀 Features
 
@@ -94,7 +94,7 @@
 
 ## 📧 Contact
 
-For support or inquiries: admin@bumable.gt.tc
+For support or inquiries: Contact through GitHub Issues
 
 ---
 **© 2025 BUMABLE. All rights reserved.**
