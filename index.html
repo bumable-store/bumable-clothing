@@ -176,14 +176,10 @@
         <!-- Shop Section -->
         <section id="shop" class="shop-section">
             <div class="container">
-                <div class="section-header">
-                    <h2 class="section-title">Shop Our Collection</h2>
-                    <p class="section-subtitle">Discover our premium underwear collection</p>
+                <div class="category-header" id="categoryHeader">
+                    <h1 class="category-title">Shop Our Collection</h1>
                 </div>
-                
-                <div class="products-grid" id="productGrid">
-                    <!-- Products will be loaded from existing shop page logic -->
-                </div>
+                <div class="product-grid" id="productGrid"></div>
             </div>
         </section>
 
@@ -235,104 +231,125 @@
                 
                 console.log('Loading products:', products.length);
                 
-                // Clear existing content
-                grid.innerHTML = '';
-                
-                // Create product cards using existing shop page logic
-                products.forEach(product => {
-                    const productCard = createProductCard(product);
-                    grid.appendChild(productCard);
-                });
+                // Set product grid using shop page logic
+                grid.innerHTML = products.map(product => {
+                    const currentPrice = window.productManager.getCurrentPrice(product);
+                    const discount = window.productManager.getDiscountPercentage(product);
+                    
+                    // Price display with sale info
+                    let priceHtml = `<div class="product-price">₹${currentPrice.toLocaleString('en-IN')}`;
+                    if (product.onSale && product.salePrice) {
+                        priceHtml += ` <span class="original-price">₹${product.regularPrice.toLocaleString('en-IN')}</span>`;
+                        priceHtml += ` <span class="discount-badge">${discount}% OFF</span>`;
+                    }
+                    priceHtml += `</div>`;
+                    
+                    return `
+                        <div class="product-card" data-product-id="${product.id}" onclick="openProductModal('${product.id}')">
+                            <div class="product-image" style="background-image: url(${product.image})"></div>
+                            <div class="product-name">${product.name}</div>
+                            ${priceHtml}
+                            <div class="shopping-controls">
+                                <div class="size-selection">
+                                    <label>Size:</label>
+                                    <div class="card-size-options-grid">
+                                        ${product.availableSizes.map(size => 
+                                            `<div class="card-size-option" data-size="${size}" data-product-id="${product.id}" onclick="event.stopPropagation(); selectCardSize('${product.id}', '${size}')">${size}</div>`
+                                        ).join('')}
+                                    </div>
+                                </div>
+                                <div class="quantity-selection">
+                                    <label>Quantity:</label>
+                                    <div class="quantity-controls">
+                                        <button onclick="event.stopPropagation(); changeQuantity('${product.id}', -1)" class="qty-btn">-</button>
+                                        <span id="qty-display-${product.id}" class="qty-display">0</span>
+                                        <button onclick="event.stopPropagation(); changeQuantity('${product.id}', 1)" class="qty-btn">+</button>
+                                    </div>
+                                </div>
+                                <button onclick="event.stopPropagation(); addProductToCart('${product.id}')" class="add-to-cart-btn" ${product.stockCount === 0 ? 'disabled' : ''}>
+                                    ${product.stockCount === 0 ? 'Out of Stock' : 'Add to Cart'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join("");
                 
                 console.log('Homepage products loaded successfully');
             }
-            
-            function createProductCard(product) {
-                const card = document.createElement('div');
-                card.className = 'product-card';
+
+            // Shop page functions for homepage
+            window.changeQuantity = function(productId, change) {
+                const qtyDisplay = document.getElementById(`qty-display-${productId}`);
+                if (!qtyDisplay) return;
                 
-                const salePrice = product.onSale ? product.salePrice : product.regularPrice;
-                const discountPercent = product.onSale ? Math.round(((product.regularPrice - product.salePrice) / product.regularPrice) * 100) : 0;
-                const imagePath = product.image.replace('../', '');
+                const product = window.productManager.getProduct(productId);
+                if (!product) return;
                 
-                card.innerHTML = `
-                    <div class="product-image" style="background-image: url('${imagePath}')">
-                        <div class="product-overlay">
-                            <button class="quick-add-btn" onclick="quickAddToCart('${product.id}')">Quick Add</button>
-                        </div>
-                        ${product.onSale ? `<span class="discount-badge">${discountPercent}% OFF</span>` : ''}
-                        ${!product.inStock ? '<span class="out-of-stock-badge">Out of Stock</span>' : ''}
-                    </div>
-                    <div class="product-content">
-                        <h3 class="product-name">${product.name}</h3>
-                        <div class="product-price">
-                            <span class="current-price">₹${salePrice}</span>
-                            ${product.onSale ? `<span class="original-price">₹${product.regularPrice}</span>` : ''}
-                        </div>
-                        <div class="stock-info ${product.inStock ? (product.stockCount <= 5 ? 'low-stock' : 'in-stock') : 'out-of-stock'}">
-                            ${product.inStock ? (product.stockCount <= 5 ? `Only ${product.stockCount} left!` : 'In Stock') : 'Out of Stock'}
-                        </div>
-                        <div class="shopping-controls">
-                            <div class="size-selection">
-                                <select class="size-selector" id="size-${product.id}" onchange="updateSelectedSize('${product.id}')">
-                                    <option value="">Choose Size</option>
-                                    ${product.availableSizes.map(size => `<option value="${size}">${size}</option>`).join('')}
-                                </select>
-                            </div>
-                            <div class="quantity-selection">
-                                <div class="quantity-controls">
-                                    <button class="qty-btn" onclick="changeQuantity('${product.id}', -1)">-</button>
-                                    <span class="qty-display" id="qty-${product.id}">1</span>
-                                    <button class="qty-btn" onclick="changeQuantity('${product.id}', 1)">+</button>
-                                </div>
-                            </div>
-                            <button class="add-to-cart-btn" onclick="addProductToCart('${product.id}')" ${!product.inStock ? 'disabled' : ''}>
-                                ${product.inStock ? 'Add to Cart' : 'Out of Stock'}
-                            </button>
-                        </div>
-                    </div>
-                `;
+                let currentQty = parseInt(qtyDisplay.textContent) || 0;
+                let newQty = currentQty + change;
                 
-                return card;
-            }
-            
-            // Helper functions for product interactions
-            function quickAddToCart(productId) {
-                addProductToCart(productId, 'M', 1); // Default to medium size
-            }
-            
-            function updateSelectedSize(productId) {
-                // Size updated
-            }
-            
-            function changeQuantity(productId, delta) {
-                const qtyElement = document.getElementById(`qty-${productId}`);
-                if (qtyElement) {
-                    const currentQty = parseInt(qtyElement.textContent) || 1;
-                    const newQty = Math.max(1, Math.min(10, currentQty + delta));
-                    qtyElement.textContent = newQty;
+                // Minimum quantity is 0
+                if (newQty < 0) newQty = 0;
+                
+                // Maximum quantity is stock count or 10, whichever is smaller
+                const maxQty = Math.min(product.stockCount, 10);
+                if (newQty > maxQty) newQty = maxQty;
+                
+                qtyDisplay.textContent = newQty;
+            };
+
+            window.selectCardSize = function(productId, size) {
+                // Remove selected class from all size options for this product
+                const sizeOptions = document.querySelectorAll(`[data-product-id="${productId}"].card-size-option`);
+                sizeOptions.forEach(opt => opt.classList.remove('selected'));
+                
+                // Add selected class to clicked option
+                const selectedOption = document.querySelector(`[data-product-id="${productId}"][data-size="${size}"]`);
+                if (selectedOption) {
+                    selectedOption.classList.add('selected');
                 }
-            }
-            
-            function addProductToCart(productId, sizeOverride, qtyOverride) {
-                const sizeElement = document.getElementById(`size-${productId}`);
-                const qtyElement = document.getElementById(`qty-${productId}`);
+            };
+
+            window.addProductToCart = function(productId) {
+                const selectedSizeElement = document.querySelector(`[data-product-id="${productId}"].card-size-option.selected`);
+                const qtyDisplay = document.getElementById(`qty-display-${productId}`);
                 
-                const size = sizeOverride || (sizeElement ? sizeElement.value : 'M');
-                const quantity = qtyOverride || (qtyElement ? parseInt(qtyElement.textContent) : 1);
+                const product = window.productManager.getProduct(productId);
+                if (!product) return;
                 
-                if (!size && !sizeOverride) {
-                    alert('Please select a size');
+                // Check if product is in stock
+                if (product.stockCount === 0) {
+                    showNotification('Product is out of stock', 'error');
                     return;
                 }
                 
-                // Use existing cart functionality
-                if (typeof addToCart === 'function') {
-                    addToCart(productId, size, quantity);
-                } else {
-                    alert(`Added ${quantity}x ${productId} (${size}) to cart!`);
+                if (!selectedSizeElement) {
+                    showNotification('Please select a size', 'warning');
+                    return;
                 }
-            }
+                
+                const selectedSize = selectedSizeElement.getAttribute('data-size');
+                const selectedQuantity = parseInt(qtyDisplay.textContent) || 0;
+                
+                // Check if quantity is greater than 0
+                if (selectedQuantity === 0) {
+                    showNotification('Please select a quantity greater than 0', 'warning');
+                    return;
+                }
+                
+                // Validate quantity against stock
+                if (selectedQuantity > product.stockCount) {
+                    showNotification(`Only ${product.stockCount} items available in stock`, 'error');
+                    return;
+                }
+
+                // Call the cart system's addToCart function with proper parameters
+                addToCart(productId, selectedSize, selectedQuantity);
+                
+                // Reset form and quantity back to 0
+                selectedSizeElement.classList.remove('selected');
+                qtyDisplay.textContent = '0';
+            };
         </script>
 
         <!-- About Section -->
@@ -497,6 +514,56 @@
         </div>
     </div>
 
+    <!-- Product Preview Modal -->
+    <div class="product-modal" id="productModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeProductModal()">&times;</button>
+            <div class="modal-body">
+                <div class="modal-image-section">
+                    <div class="modal-main-image" id="modalMainImage"></div>
+                    <div class="modal-thumbnails" id="modalThumbnails">
+                        <!-- Thumbnails will be loaded here -->
+                    </div>
+                </div>
+                <div class="modal-details-section">
+                    <h1 class="modal-product-name" id="modalProductName"></h1>
+                    <div class="modal-product-price" id="modalProductPrice"></div>
+                    <div class="modal-description" id="modalProductDescription"></div>
+                    
+                    <div class="modal-size-selection">
+                        <label for="modalSizeSelector">SIZE:</label>
+                        <div class="size-options-grid">
+                            <div class="size-option" data-size="S">S</div>
+                            <div class="size-option" data-size="M">M</div>
+                            <div class="size-option" data-size="L">L</div>
+                            <div class="size-option" data-size="XL">XL</div>
+                            <div class="size-option" data-size="XXL">XXL</div>
+                        </div>
+                        <select id="modalSizeSelector" class="modal-size-selector" required>
+                            <option value="">Choose Size</option>
+                        </select>
+                    </div>
+                    
+                    <div class="modal-quantity-selection">
+                        <label>QUANTITY:</label>
+                        <div class="modal-quantity-controls">
+                            <span class="quantity-label">QTY</span>
+                            <div class="quantity-input-group">
+                                <button type="button" class="modal-qty-btn" onclick="changeModalQuantity(-1)">−</button>
+                                <input type="number" id="modalQtyDisplay" class="modal-qty-display" value="1" min="1" max="10" readonly>
+                                <button type="button" class="modal-qty-btn" onclick="changeModalQuantity(1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button onclick="addModalProductToCart()" class="modal-add-to-cart-btn" id="modalAddToCartBtn">
+                        Add to Cart
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript -->
     <script src="js/github-database-complete.js"></script>
     <script src="js/cart.js"></script>
@@ -504,6 +571,253 @@
     <script src="js/main.js"></script>
     
     <script>
+        // Global variables for modal
+        let currentModalProduct = null;
+        let modalQuantity = 1;
+        
+        // Open product modal
+        function openProductModal(productId) {
+            const product = window.productManager.getProduct(productId);
+            if (!product) return;
+            
+            currentModalProduct = product;
+            modalQuantity = 1;
+            
+            // Update modal content
+            document.getElementById('modalProductName').textContent = product.name;
+            
+            // Price display
+            let priceHtml = `₹${product.salePrice || product.regularPrice}`;
+            if (product.onSale && product.salePrice) {
+                priceHtml += `<span class="modal-original-price">₹${product.regularPrice}</span>`;
+                const discount = Math.round((1 - product.salePrice / product.regularPrice) * 100);
+                priceHtml += `<span class="modal-discount-badge">${discount}% OFF</span>`;
+            }
+            document.getElementById('modalProductPrice').innerHTML = priceHtml;
+            
+            // Description
+            document.getElementById('modalProductDescription').textContent = product.description || 'Premium quality underwear crafted for ultimate comfort and style.';
+            
+            // Main image
+            const mainImage = product.images && product.images[0] ? product.images[0] : product.image;
+            document.getElementById('modalMainImage').style.backgroundImage = `url(${mainImage})`;
+            
+            // Thumbnails
+            const thumbnailsContainer = document.getElementById('modalThumbnails');
+            thumbnailsContainer.innerHTML = '';
+            
+            if (product.images && product.images.length > 1) {
+                product.images.forEach((image, index) => {
+                    const thumbnail = document.createElement('div');
+                    thumbnail.className = `modal-thumbnail ${index === 0 ? 'active' : ''}`;
+                    thumbnail.style.backgroundImage = `url(${image})`;
+                    thumbnail.onclick = () => switchModalImage(image, thumbnail);
+                    thumbnailsContainer.appendChild(thumbnail);
+                });
+            }
+            
+            // Setup size selection
+            const sizeGrid = document.querySelector('.size-options-grid');
+            const sizeSelector = document.getElementById('modalSizeSelector');
+            sizeSelector.innerHTML = '<option value="">Choose Size</option>';
+            
+            // Clear existing size options
+            sizeGrid.innerHTML = '';
+            
+            // Create size options for the grid
+            const allSizes = ['S', 'M', 'L', 'XL', 'XXL'];
+            allSizes.forEach(size => {
+                const sizeOption = document.createElement('div');
+                sizeOption.className = 'size-option';
+                sizeOption.setAttribute('data-size', size);
+                sizeOption.textContent = size;
+                
+                // Check if size is available
+                if (product.availableSizes && product.availableSizes.includes(size)) {
+                    sizeOption.addEventListener('click', function() {
+                        selectSize(size, this);
+                    });
+                    
+                    // Add to select dropdown too (hidden)
+                    const option = document.createElement('option');
+                    option.value = size;
+                    option.textContent = size;
+                    sizeSelector.appendChild(option);
+                } else {
+                    sizeOption.classList.add('unavailable');
+                }
+                
+                sizeGrid.appendChild(sizeOption);
+            });
+            
+            // Reset quantity display
+            const qtyDisplay = document.getElementById('modalQtyDisplay');
+            qtyDisplay.value = modalQuantity;
+            updateQuantityButtons();
+            updateAddToCartButton();
+            
+            // Show modal
+            const modal = document.getElementById('productModal');
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('show'), 10);
+            
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+        
+        // Size selection function
+        function selectSize(size, element) {
+            // Remove selected class from all size options
+            document.querySelectorAll('.size-option').forEach(opt => opt.classList.remove('selected'));
+            
+            // Add selected class to clicked option
+            element.classList.add('selected');
+            
+            // Update the hidden select element
+            document.getElementById('modalSizeSelector').value = size;
+            
+            // Add tactile feedback
+            element.style.transform = 'scale(1.1)';
+            setTimeout(() => {
+                element.style.transform = '';
+            }, 200);
+        }
+        
+        // Close product modal
+        function closeProductModal() {
+            const modal = document.getElementById('productModal');
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }, 300);
+        }
+        
+        // Switch modal main image
+        function switchModalImage(imageSrc, clickedThumbnail) {
+            const mainImage = document.getElementById('modalMainImage');
+            
+            mainImage.style.opacity = '0.6';
+            mainImage.style.transform = 'scale(0.98)';
+            
+            setTimeout(() => {
+                mainImage.style.backgroundImage = `url(${imageSrc})`;
+                mainImage.style.opacity = '1';
+                mainImage.style.transform = 'scale(1)';
+            }, 200);
+            
+            // Update active thumbnail
+            document.querySelectorAll('.modal-thumbnail').forEach(thumb => thumb.classList.remove('active'));
+            clickedThumbnail.classList.add('active');
+        }
+        
+        // Modal quantity change
+        function changeModalQuantity(delta) {
+            const qtyDisplay = document.getElementById('modalQtyDisplay');
+            const currentQty = parseInt(qtyDisplay.value);
+            const newQuantity = currentQty + delta;
+            
+            if (newQuantity >= 1 && newQuantity <= 10) {
+                modalQuantity = newQuantity;
+                qtyDisplay.value = modalQuantity;
+                
+                qtyDisplay.style.transform = 'scale(1.05)';
+                setTimeout(() => {
+                    qtyDisplay.style.transform = 'scale(1)';
+                }, 150);
+            }
+            
+            updateQuantityButtons();
+            updateAddToCartButton();
+        }
+        
+        // Update quantity button states
+        function updateQuantityButtons() {
+            const buttons = document.querySelectorAll('.modal-qty-btn');
+            const decreaseBtn = buttons[0];
+            const increaseBtn = buttons[1];
+            
+            if (decreaseBtn) {
+                decreaseBtn.disabled = modalQuantity <= 1;
+                decreaseBtn.style.opacity = modalQuantity <= 1 ? '0.3' : '1';
+            }
+            
+            if (increaseBtn) {
+                increaseBtn.disabled = modalQuantity >= 10;
+                increaseBtn.style.opacity = modalQuantity >= 10 ? '0.3' : '1';
+            }
+        }
+        
+        // Update Add to Cart button
+        function updateAddToCartButton() {
+            const addToCartBtn = document.getElementById('modalAddToCartBtn');
+            if (addToCartBtn) {
+                addToCartBtn.disabled = false;
+                addToCartBtn.style.opacity = '1';
+                addToCartBtn.textContent = 'ADD TO CART';
+            }
+        }
+        
+        // Add to cart from modal
+        function addModalProductToCart() {
+            if (!currentModalProduct) return;
+            
+            const sizeSelector = document.getElementById('modalSizeSelector');
+            const addToCartBtn = document.getElementById('modalAddToCartBtn');
+            
+            // Check size selection
+            if (!sizeSelector.value) {
+                const sizeGrid = document.querySelector('.size-options-grid');
+                sizeGrid.style.animation = 'shake 0.6s ease-in-out';
+                
+                setTimeout(() => {
+                    sizeGrid.style.animation = '';
+                }, 600);
+                
+                alert('Please select a size');
+                return;
+            }
+            
+            // Add loading state
+            addToCartBtn.classList.add('loading');
+            addToCartBtn.textContent = 'Adding...';
+            addToCartBtn.disabled = true;
+            
+            setTimeout(() => {
+                // Use the cart system
+                addToCart(currentModalProduct.id, sizeSelector.value, modalQuantity);
+                
+                // Success state
+                addToCartBtn.classList.remove('loading');
+                addToCartBtn.classList.add('success');
+                addToCartBtn.textContent = '✓ Added to Cart!';
+                
+                // Reset after success
+                setTimeout(() => {
+                    addToCartBtn.classList.remove('success');
+                    addToCartBtn.textContent = 'ADD TO CART';
+                    addToCartBtn.disabled = false;
+                    
+                    closeProductModal();
+                }, 2000);
+            }, 1000);
+        }
+        
+        // Close modal when clicking outside
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('productModal');
+            if (e.target === modal) {
+                closeProductModal();
+            }
+        });
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('productModal').style.display === 'flex') {
+                closeProductModal();
+            }
+        });
+        
         // Admin redirect functionality for homepage
         document.addEventListener('DOMContentLoaded', function() {
             const adminLinkHome = document.getElementById('admin-link-home');
