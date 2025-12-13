@@ -261,9 +261,9 @@
                                 <div class="quantity-selection">
                                     <label>Quantity:</label>
                                     <div class="quantity-controls">
-                                        <button type="button" onclick="event.stopPropagation(); changeQuantity('${product.id}', -1)" class="qty-btn">-</button>
+                                        <button type="button" data-product-id="${product.id}" data-change="-1" class="qty-btn qty-decrease">-</button>
                                         <span id="qty-display-${product.id}" class="qty-display">0</span>
-                                        <button type="button" onclick="event.stopPropagation(); changeQuantity('${product.id}', 1)" class="qty-btn">+</button>
+                                        <button type="button" data-product-id="${product.id}" data-change="1" class="qty-btn qty-increase">+</button>
                                     </div>
                                 </div>
                                 <button onclick="event.stopPropagation(); addProductToCart('${product.id}')" class="add-to-cart-btn" ${product.stockCount === 0 ? 'disabled' : ''}>
@@ -282,16 +282,12 @@
                         if (!button.hasAttribute('data-listener-added')) {
                             button.addEventListener('click', function(e) {
                                 e.stopPropagation();
-                                const parentControls = button.closest('.quantity-controls');
-                                if (parentControls) {
-                                    const qtyDisplay = parentControls.querySelector('.qty-display');
-                                    if (qtyDisplay) {
-                                        const productId = qtyDisplay.id.replace('qty-display-', '');
-                                        const change = button.textContent === '+' ? 1 : -1;
-                                        console.log('Event listener triggered for:', productId, change);
-                                        window.changeQuantity(productId, change);
-                                    }
-                                }
+                                e.preventDefault();
+                                
+                                const productId = button.getAttribute('data-product-id');
+                                const change = parseInt(button.getAttribute('data-change'));
+                                
+                                window.changeQuantity(productId, change);
                             });
                             button.setAttribute('data-listener-added', 'true');
                         }
@@ -303,10 +299,7 @@
         <script>
         // Shop page functions for homepage - moved to global scope
         window.changeQuantity = function(productId, change) {
-            console.log('changeQuantity called with:', productId, change);
-            
             const qtyDisplay = document.getElementById(`qty-display-${productId}`);
-            console.log('qtyDisplay element:', qtyDisplay);
             if (!qtyDisplay) {
                 console.error('Quantity display not found for product:', productId);
                 return;
@@ -318,7 +311,6 @@
             }
             
             const product = window.productManager.getProduct(productId);
-            console.log('Product found:', product);
             if (!product) {
                 console.error('Product not found:', productId);
                 return;
@@ -326,7 +318,6 @@
             
             let currentQty = parseInt(qtyDisplay.textContent) || 0;
             let newQty = currentQty + change;
-            console.log('Current qty:', currentQty, 'New qty:', newQty);
             
             // Minimum quantity is 0
             if (newQty < 0) newQty = 0;
@@ -335,10 +326,9 @@
             const maxQty = Math.min(product.stockCount, 10);
             if (newQty > maxQty) newQty = maxQty;
             
-            console.log('Final qty after limits:', newQty);
             qtyDisplay.textContent = newQty;
             
-            // If modal is open for this product, sync the modal quantity too
+            // Always sync with modal if open for this product
             if (window.currentModalProduct && window.currentModalProduct.id === productId) {
                 window.modalQuantity = newQty;
                 const modalQtyDisplay = document.getElementById('modalQtyDisplay');
@@ -823,7 +813,7 @@
                 window.modalQuantity = newQuantity;
                 qtyDisplay.value = window.modalQuantity;
                 
-                // Update homepage quantity to stay in sync
+                // Always sync with homepage for current product
                 if (window.currentModalProduct) {
                     const homepageQtyDisplay = document.getElementById(`qty-display-${window.currentModalProduct.id}`);
                     if (homepageQtyDisplay) {
