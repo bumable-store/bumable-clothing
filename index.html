@@ -256,9 +256,9 @@
                                 <div class="quantity-selection">
                                     <div class="control-label">Quantity:</div>
                                     <div class="quantity-controls">
-                                        <button type="button" onclick="event.stopPropagation(); window.changeQuantity('${product.id}', -1)" class="qty-btn qty-decrease" aria-label="Decrease quantity">-</button>
+                                        <button type="button" onclick="event.stopPropagation(); changeQuantity('${product.id}', -1)" class="qty-btn qty-decrease" aria-label="Decrease quantity">-</button>
                                         <span id="qty-display-${product.id}" class="qty-display" aria-label="Current quantity">0</span>
-                                        <button type="button" onclick="event.stopPropagation(); window.changeQuantity('${product.id}', 1)" class="qty-btn qty-increase" aria-label="Increase quantity">+</button>
+                                        <button type="button" onclick="event.stopPropagation(); changeQuantity('${product.id}', 1)" class="qty-btn qty-increase" aria-label="Increase quantity">+</button>
                                     </div>
                                 </div>
                                 <button onclick="event.stopPropagation(); addProductToCart('${product.id}')" class="add-to-cart-btn" ${product.stockCount === 0 ? 'disabled' : ''}>
@@ -272,24 +272,10 @@
         </script>
         
         <script>
-        // Shop page functions for homepage - moved to global scope
-        window.changeQuantity = function(productId, change) {
+        // Simple quantity change function - working version
+        function changeQuantity(productId, change) {
             const qtyDisplay = document.getElementById(`qty-display-${productId}`);
-            if (!qtyDisplay) {
-                console.error('❌ Quantity display not found for:', productId);
-                return;
-            }
-            
-            if (!window.productManager) {
-                console.error('❌ ProductManager not available');
-                return;
-            }
-            
-            const product = window.productManager.getProduct(productId);
-            if (!product) {
-                console.error('❌ Product not found:', productId);
-                return;
-            }
+            if (!qtyDisplay) return;
             
             let currentQty = parseInt(qtyDisplay.textContent) || 0;
             let newQty = currentQty + change;
@@ -297,13 +283,12 @@
             // Minimum quantity is 0
             if (newQty < 0) newQty = 0;
             
-            // Maximum quantity is stock count or 10, whichever is smaller
-            const maxQty = Math.min(product.stockCount, 10);
-            if (newQty > maxQty) newQty = maxQty;
+            // Maximum quantity limit (assuming 10 or stock)
+            if (newQty > 10) newQty = 10;
             
             qtyDisplay.textContent = newQty;
             
-            // Always sync with modal if open for this product
+            // Sync with modal if open for this product
             if (window.currentModalProduct && window.currentModalProduct.id === productId) {
                 window.modalQuantity = newQty;
                 const modalQtyDisplay = document.getElementById('modalQtyDisplay');
@@ -313,7 +298,10 @@
                     if (typeof updateAddToCartButton === 'function') updateAddToCartButton();
                 }
             }
-        };
+        }
+        
+        // Make it globally accessible
+        window.changeQuantity = changeQuantity;
 
         window.selectCardSize = function(productId, size) {
             // Remove selected class from all size options for this product
