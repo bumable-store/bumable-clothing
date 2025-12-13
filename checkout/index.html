@@ -258,22 +258,45 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         
+        .qr-placeholder {
+            background: linear-gradient(135deg, #ffffff, #f8f9ff);
+            border: 2px dashed #4285f4;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            margin: 15px 0;
+        }
+        
+        .qr-info p {
+            margin: 8px 0;
+            color: #666;
+        }
+        
+        .qr-info strong {
+            color: #1a73e8;
+            font-size: 1.1rem;
+        }
+        
+        .upi-details-box {
+            background: #f0f8ff;
+            border: 1px solid #e0e7ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .upi-details-box p {
+            margin: 5px 0;
+            font-family: 'Courier New', monospace;
+            color: #333;
+        }
+        
         .qr-code img {
             display: block;
             margin: 0 auto 15px auto;
             border: 2px solid #f0f0f0;
             border-radius: 10px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .qr-code p {
-            margin: 8px 0;
-            color: #666;
-        }
-        
-        .qr-code strong {
-            color: #1a73e8;
-            font-size: 1.1rem;
         }
 
         @media (max-width: 768px) {
@@ -445,9 +468,17 @@
                         <h4>UPI Payment Details</h4>
                         <div class="upi-id">UPI ID: saravanasachin286-1@okhdfcbank</div>
                         <div class="qr-code">
-                            <img src="../images/upi-qr-code.svg" alt="UPI QR Code for saravanasachin286-1@okhdfcbank" style="width: 200px; height: 200px; border: 1px solid #ddd; border-radius: 8px; margin: 10px 0;">
-                            <p>Scan QR code to pay with any UPI app</p>
-                            <p><strong>Saravana Sachin</strong></p>
+                            <div class="qr-placeholder">
+                                <div class="qr-info">
+                                    <i class="fas fa-qrcode" style="font-size: 3rem; color: #4285f4; margin-bottom: 15px;"></i>
+                                    <p><strong>Pay using UPI</strong></p>
+                                    <p>Open any UPI app and enter:</p>
+                                    <div class="upi-details-box">
+                                        <p><strong>UPI ID:</strong> saravanasachin286-1@okhdfcbank</p>
+                                        <p><strong>Name:</strong> Saravana Sachin</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
