@@ -281,8 +281,14 @@
         <script>
         // Shop page functions for homepage - moved to global scope
         window.changeQuantity = function(productId, change) {
+            console.log('changeQuantity called with:', productId, change);
+            
             const qtyDisplay = document.getElementById(`qty-display-${productId}`);
-            if (!qtyDisplay) return;
+            console.log('qtyDisplay element:', qtyDisplay);
+            if (!qtyDisplay) {
+                console.error('Quantity display not found for product:', productId);
+                return;
+            }
             
             if (!window.productManager) {
                 console.error('ProductManager not available');
@@ -290,10 +296,15 @@
             }
             
             const product = window.productManager.getProduct(productId);
-            if (!product) return;
+            console.log('Product found:', product);
+            if (!product) {
+                console.error('Product not found:', productId);
+                return;
+            }
             
             let currentQty = parseInt(qtyDisplay.textContent) || 0;
             let newQty = currentQty + change;
+            console.log('Current qty:', currentQty, 'New qty:', newQty);
             
             // Minimum quantity is 0
             if (newQty < 0) newQty = 0;
@@ -302,6 +313,7 @@
             const maxQty = Math.min(product.stockCount, 10);
             if (newQty > maxQty) newQty = maxQty;
             
+            console.log('Final qty after limits:', newQty);
             qtyDisplay.textContent = newQty;
             
             // If modal is open for this product, sync the modal quantity too
@@ -315,6 +327,24 @@
                 }
             }
         };
+
+        // Test function to verify function accessibility
+        window.testQuantityFunction = function() {
+            console.log('Test function works!');
+            console.log('changeQuantity function available:', typeof window.changeQuantity);
+            console.log('ProductManager available:', !!window.productManager);
+            if (window.productManager) {
+                console.log('All products:', window.productManager.getAllProducts());
+            }
+        };
+        
+        // Auto-test when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                console.log('=== QUANTITY FUNCTION TEST ===');
+                window.testQuantityFunction();
+            }, 2000);
+        });
 
         window.selectCardSize = function(productId, size) {
             // Remove selected class from all size options for this product
