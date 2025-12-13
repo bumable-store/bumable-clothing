@@ -1254,6 +1254,8 @@
         function checkAdminAuthentication() {
             const adminSession = localStorage.getItem('bumableAdminSession');
             
+            console.log('Checking admin session:', adminSession); // Debug log
+            
             if (!adminSession) {
                 redirectToLogin('No session found. Please login.');
                 return false;
@@ -1262,6 +1264,9 @@
             try {
                 const session = JSON.parse(adminSession);
                 const now = new Date().getTime();
+                
+                console.log('Session data:', session); // Debug log
+                console.log('Current time:', now, 'Session expires:', session.expires); // Debug log
                 
                 if (session.expires <= now) {
                     localStorage.removeItem('bumableAdminSession');
