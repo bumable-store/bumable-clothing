@@ -50,9 +50,6 @@
     
     .nav-toggle {
         display: flex;
-        padding: 8px;
-        z-index: 1001;
-        position: relative;
     }
     
     .nav-toggle.active span:nth-child(1) {
@@ -214,10 +211,7 @@
     }
     
     .nav-toggle {
-        display: flex;
         padding: 8px;
-        z-index: 1001;
-        position: relative;
     }
     
     .nav-menu {
@@ -231,20 +225,6 @@
         border-bottom: 1px solid #f0f0f0;
         width: 100%;
         text-align: center;
-    }
-    
-    /* Mobile cart count visibility */
-    .cart-count {
-        display: flex !important;
-        width: 16px;
-        height: 16px;
-        font-size: 10px;
-        top: -6px;
-        right: -6px;
-    }
-    
-    .btn-cart {
-        padding: 6px;
     }
     
     /* Hero */
@@ -291,33 +271,6 @@
         margin: 1rem 0;
         min-height: 200px;
         border-radius: 15px;
-    }
-    
-    /* Cart count mobile visibility */
-    .cart-count {
-        display: flex !important;
-        position: absolute;
-        top: -8px;
-        right: -8px;
-        background: #ff6b6b;
-        color: white;
-        border-radius: 50%;
-        width: 18px;
-        height: 18px;
-        font-size: 11px;
-        font-weight: bold;
-        align-items: center;
-        justify-content: center;
-        z-index: 10;
-    }
-    
-    .nav-actions {
-        gap: 15px;
-    }
-    
-    .btn-cart {
-        padding: 8px;
-        position: relative;
     }
     
     .hero-placeholder i {
