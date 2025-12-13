@@ -256,9 +256,9 @@
                                 <div class="quantity-selection">
                                     <div class="control-label">Quantity:</div>
                                     <div class="quantity-controls">
-                                        <button type="button" data-product-id="${product.id}" data-change="-1" class="qty-btn qty-decrease" aria-label="Decrease quantity">-</button>
+                                        <button type="button" onclick="event.stopPropagation(); window.changeQuantity('${product.id}', -1)" class="qty-btn qty-decrease" aria-label="Decrease quantity">-</button>
                                         <span id="qty-display-${product.id}" class="qty-display" aria-label="Current quantity">0</span>
-                                        <button type="button" data-product-id="${product.id}" data-change="1" class="qty-btn qty-increase" aria-label="Increase quantity">+</button>
+                                        <button type="button" onclick="event.stopPropagation(); window.changeQuantity('${product.id}', 1)" class="qty-btn qty-increase" aria-label="Increase quantity">+</button>
                                     </div>
                                 </div>
                                 <button onclick="event.stopPropagation(); addProductToCart('${product.id}')" class="add-to-cart-btn" ${product.stockCount === 0 ? 'disabled' : ''}>
@@ -268,26 +268,6 @@
                         </div>
                     `;
                 }).join("");
-                
-                // Add event listeners as backup for quantity buttons
-                setTimeout(function() {
-                    const qtyButtons = document.querySelectorAll('.qty-btn');
-                    
-                    qtyButtons.forEach((button) => {
-                        if (!button.hasAttribute('data-listener-added')) {
-                            button.addEventListener('click', function(e) {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                
-                                const productId = button.getAttribute('data-product-id');
-                                const change = parseInt(button.getAttribute('data-change'));
-                                
-                                window.changeQuantity(productId, change);
-                            });
-                            button.setAttribute('data-listener-added', 'true');
-                        }
-                    });
-                }, 1000);
             }
         </script>
         
@@ -296,15 +276,18 @@
         window.changeQuantity = function(productId, change) {
             const qtyDisplay = document.getElementById(`qty-display-${productId}`);
             if (!qtyDisplay) {
+                console.error('❌ Quantity display not found for:', productId);
                 return;
             }
             
             if (!window.productManager) {
+                console.error('❌ ProductManager not available');
                 return;
             }
             
             const product = window.productManager.getProduct(productId);
             if (!product) {
+                console.error('❌ Product not found:', productId);
                 return;
             }
             
