@@ -489,10 +489,8 @@
             const upiDetails = document.getElementById('upi-details');
             if (method === 'upi') {
                 upiDetails.classList.add('active');
-                document.getElementById('transaction-id').required = true;
             } else {
                 upiDetails.classList.remove('active');
-                document.getElementById('transaction-id').required = false;
             }
         }
 
@@ -592,20 +590,6 @@
             if (!data.payment) {
                 alert('Please select a payment method.');
                 document.querySelector('#upi, #cod').focus();
-                return false;
-            }
-            
-            // Validate UPI transaction ID if UPI is selected
-            if (data.payment === 'upi' && !data.transactionId) {
-                alert('Please enter the UPI transaction ID after making the payment.');
-                document.querySelector('#transaction-id').focus();
-                return false;
-            }
-            
-            // Validate UPI transaction ID format (basic check)
-            if (data.payment === 'upi' && data.transactionId && data.transactionId.length < 6) {
-                alert('Please enter a valid UPI transaction ID (minimum 6 characters).');
-                document.querySelector('#transaction-id').focus();
                 return false;
             }
             
