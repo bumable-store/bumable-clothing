@@ -217,6 +217,65 @@
             transform: none;
         }
 
+        /* UPI QR Code Styling */
+        .upi-details {
+            display: none;
+            margin-top: 20px;
+            padding: 25px;
+            background: linear-gradient(135deg, #f0f8ff, #e6f3ff);
+            border-radius: 15px;
+            border: 2px solid #4285f4;
+            text-align: center;
+        }
+        
+        .upi-details.active {
+            display: block;
+        }
+        
+        .upi-details h4 {
+            color: #1a73e8;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .upi-id {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #333;
+            font-size: 1rem;
+        }
+        
+        .qr-code {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 15px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .qr-code img {
+            display: block;
+            margin: 0 auto 15px auto;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .qr-code p {
+            margin: 8px 0;
+            color: #666;
+        }
+        
+        .qr-code strong {
+            color: #1a73e8;
+            font-size: 1.1rem;
+        }
+
         @media (max-width: 768px) {
             .checkout-container {
                 grid-template-columns: 1fr;
@@ -226,6 +285,11 @@
             
             .form-row {
                 grid-template-columns: 1fr;
+            }
+            
+            .qr-code img {
+                width: 180px !important;
+                height: 180px !important;
             }
         }
     </style>
@@ -381,6 +445,7 @@
                         <h4>UPI Payment Details</h4>
                         <div class="upi-id">UPI ID: saravanasachin286-1@okhdfcbank</div>
                         <div class="qr-code">
+                            <img src="../images/upi-qr-code.svg" alt="UPI QR Code for saravanasachin286-1@okhdfcbank" style="width: 200px; height: 200px; border: 1px solid #ddd; border-radius: 8px; margin: 10px 0;">
                             <p>Scan QR code to pay with any UPI app</p>
                             <p><strong>Saravana Sachin</strong></p>
                         </div>

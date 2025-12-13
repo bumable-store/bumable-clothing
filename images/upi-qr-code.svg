@@ -1,0 +1,15 @@
+<!-- This is a placeholder for the UPI QR Code -->
+<!-- Please replace this file with the actual QR code image you provided -->
+<!-- The QR code should be for UPI ID: saravanasachin286-1@okhdfcbank -->
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="200" fill="#ffffff" stroke="#000000" stroke-width="1"/>
+  <text x="100" y="90" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#000000">
+    UPI QR Code
+  </text>
+  <text x="100" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#000000">
+    saravanasachin286-1@okhdfcbank
+  </text>
+  <text x="100" y="130" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#666666">
+    Replace with actual QR image
+  </text>
+</svg>
