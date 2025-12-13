@@ -181,74 +181,158 @@
                     <p class="section-subtitle">Discover our premium underwear collection</p>
                 </div>
                 
-                <div class="products-grid" id="products-grid">
-                    <!-- Products will be loaded by inline script below -->
+                <div class="products-grid" id="productGrid">
+                    <!-- Products will be loaded from existing shop page logic -->
                 </div>
             </div>
         </section>
 
-        <!-- Inline Product Loading Script -->
         <script>
-            // Immediate product loading - no dependencies
-            (function() {
-                console.log('Inline script: Starting immediate product loading');
+            // Initialize shop section on homepage using existing shop logic
+            document.addEventListener('DOMContentLoaded', function() {
+                // Wait for other scripts to load, then initialize shop section
+                setTimeout(function() {
+                    initHomepageShop();
+                }, 1000);
+            });
+            
+            function initHomepageShop() {
+                console.log('Initializing homepage shop section');
                 
-                // Simple product data
-                const products = [
-                    {id:'bumable-brief-cheery-red',name:'Bumable Brief – Cheery Red',regularPrice:499,salePrice:199,onSale:true,image:'images/hero-product-1.jpg',category:'briefs',inStock:true,availableSizes:['S','M','L','XL','XXL']},
-                    {id:'bumable-brief-olive',name:'Bumable Brief – Olive',regularPrice:499,salePrice:199,onSale:true,image:'images/hero-product-2.jpg',category:'briefs',inStock:true,availableSizes:['S','M','L','XL','XXL']},
-                    {id:'tie-and-dye-brief',name:'Tie and Dye Brief',regularPrice:599,salePrice:249,onSale:true,image:'images/products/tie-dye/tie-dye-1-main.jpg',category:'tie-dye',inStock:true,availableSizes:['S','M','L','XL','XXL']},
-                    {id:'tie-and-dye-trunks',name:'Tie and Dye Trunks',regularPrice:599,salePrice:249,onSale:true,image:'images/products/tie-dye/tie-dye-2-main.jpg',category:'tie-dye',inStock:true,availableSizes:['S','M','L','XL','XXL']},
-                    {id:'solid-trunks-navy',name:'Solid Trunks – Navy',regularPrice:499,salePrice:199,onSale:true,image:'images/products/solid/solid-navy-main.jpg',category:'trunks',inStock:true,availableSizes:['S','M','L','XL','XXL']},
-                    {id:'solid-trunks-grey',name:'Solid Trunks – Grey',regularPrice:499,salePrice:199,onSale:true,image:'images/products/solid/solid-2-main.jpg',category:'trunks',inStock:true,availableSizes:['S','M','L','XL','XXL']}
-                ];
+                // Make sure ProductManager is available
+                if (!window.ProductManager) {
+                    console.log('ProductManager not available, retrying...');
+                    setTimeout(initHomepageShop, 500);
+                    return;
+                }
                 
-                function createSimpleProductCard(product) {
-                    const discountPercent = Math.round(((product.regularPrice - product.salePrice) / product.regularPrice) * 100);
-                    
-                    return `
-                        <div class="product-card">
-                            <div class="product-image" style="background-image: url('${product.image}'); height: 250px; background-size: cover; background-position: center; position: relative; border-radius: 10px;">
-                                <div class="product-badge" style="position: absolute; top: 15px; right: 15px; background: #ff6b6b; color: white; padding: 0.5rem 1rem; border-radius: 25px; font-size: 0.8rem; font-weight: 600;">${discountPercent}% OFF</div>
-                            </div>
-                            <div class="product-content" style="padding: 1.5rem;">
-                                <h3 class="product-name" style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">${product.name}</h3>
-                                <div class="product-price" style="margin-bottom: 1rem;">
-                                    <span class="sale-price" style="font-size: 1.3rem; font-weight: bold; color: #ff6b6b;">₹${product.salePrice}</span>
-                                    <span class="original-price" style="font-size: 1rem; color: #999; text-decoration: line-through; margin-left: 0.5rem;">₹${product.regularPrice}</span>
-                                </div>
-                                <div class="product-controls">
-                                    <select class="size-selector" style="width: 100%; padding: 0.8rem; border: 2px solid #e0e0e0; border-radius: 8px; margin-bottom: 1rem;">
-                                        <option value="">Choose Size</option>
-                                        ${product.availableSizes.map(size => `<option value="${size}">${size}</option>`).join('')}
-                                    </select>
-                                    <button class="add-to-cart-btn" style="width: 100%; background: linear-gradient(135deg, #ff6b6b, #ff5252); color: white; border: none; padding: 1rem; border-radius: 8px; font-weight: 600; cursor: pointer;" onclick="alert('Add to cart: ${product.name}')">Add to Cart</button>
-                                </div>
-                            </div>
+                // Create ProductManager instance if needed
+                if (!window.productManager) {
+                    window.productManager = new ProductManager();
+                }
+                
+                // Load products into homepage shop section
+                loadHomepageProducts();
+            }
+            
+            function loadHomepageProducts() {
+                const grid = document.getElementById("productGrid");
+                if (!grid) {
+                    console.error('productGrid not found');
+                    return;
+                }
+                
+                if (!window.productManager) {
+                    console.error('productManager not available');
+                    return;
+                }
+                
+                let products = window.productManager.getAllProducts();
+                if (!products || products.length === 0) {
+                    grid.innerHTML = '<div style="text-align: center; padding: 2rem; color: #666;">No products available</div>';
+                    return;
+                }
+                
+                console.log('Loading products:', products.length);
+                
+                // Clear existing content
+                grid.innerHTML = '';
+                
+                // Create product cards using existing shop page logic
+                products.forEach(product => {
+                    const productCard = createProductCard(product);
+                    grid.appendChild(productCard);
+                });
+                
+                console.log('Homepage products loaded successfully');
+            }
+            
+            function createProductCard(product) {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                
+                const salePrice = product.onSale ? product.salePrice : product.regularPrice;
+                const discountPercent = product.onSale ? Math.round(((product.regularPrice - product.salePrice) / product.regularPrice) * 100) : 0;
+                const imagePath = product.image.replace('../', '');
+                
+                card.innerHTML = `
+                    <div class="product-image" style="background-image: url('${imagePath}')">
+                        <div class="product-overlay">
+                            <button class="quick-add-btn" onclick="quickAddToCart('${product.id}')">Quick Add</button>
                         </div>
-                    `;
+                        ${product.onSale ? `<span class="discount-badge">${discountPercent}% OFF</span>` : ''}
+                        ${!product.inStock ? '<span class="out-of-stock-badge">Out of Stock</span>' : ''}
+                    </div>
+                    <div class="product-content">
+                        <h3 class="product-name">${product.name}</h3>
+                        <div class="product-price">
+                            <span class="current-price">₹${salePrice}</span>
+                            ${product.onSale ? `<span class="original-price">₹${product.regularPrice}</span>` : ''}
+                        </div>
+                        <div class="stock-info ${product.inStock ? (product.stockCount <= 5 ? 'low-stock' : 'in-stock') : 'out-of-stock'}">
+                            ${product.inStock ? (product.stockCount <= 5 ? `Only ${product.stockCount} left!` : 'In Stock') : 'Out of Stock'}
+                        </div>
+                        <div class="shopping-controls">
+                            <div class="size-selection">
+                                <select class="size-selector" id="size-${product.id}" onchange="updateSelectedSize('${product.id}')">
+                                    <option value="">Choose Size</option>
+                                    ${product.availableSizes.map(size => `<option value="${size}">${size}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="quantity-selection">
+                                <div class="quantity-controls">
+                                    <button class="qty-btn" onclick="changeQuantity('${product.id}', -1)">-</button>
+                                    <span class="qty-display" id="qty-${product.id}">1</span>
+                                    <button class="qty-btn" onclick="changeQuantity('${product.id}', 1)">+</button>
+                                </div>
+                            </div>
+                            <button class="add-to-cart-btn" onclick="addProductToCart('${product.id}')" ${!product.inStock ? 'disabled' : ''}>
+                                ${product.inStock ? 'Add to Cart' : 'Out of Stock'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                return card;
+            }
+            
+            // Helper functions for product interactions
+            function quickAddToCart(productId) {
+                addProductToCart(productId, 'M', 1); // Default to medium size
+            }
+            
+            function updateSelectedSize(productId) {
+                // Size updated
+            }
+            
+            function changeQuantity(productId, delta) {
+                const qtyElement = document.getElementById(`qty-${productId}`);
+                if (qtyElement) {
+                    const currentQty = parseInt(qtyElement.textContent) || 1;
+                    const newQty = Math.max(1, Math.min(10, currentQty + delta));
+                    qtyElement.textContent = newQty;
+                }
+            }
+            
+            function addProductToCart(productId, sizeOverride, qtyOverride) {
+                const sizeElement = document.getElementById(`size-${productId}`);
+                const qtyElement = document.getElementById(`qty-${productId}`);
+                
+                const size = sizeOverride || (sizeElement ? sizeElement.value : 'M');
+                const quantity = qtyOverride || (qtyElement ? parseInt(qtyElement.textContent) : 1);
+                
+                if (!size && !sizeOverride) {
+                    alert('Please select a size');
+                    return;
                 }
                 
-                // Wait for DOM to be ready
-                function loadProducts() {
-                    const grid = document.getElementById('products-grid');
-                    if (grid) {
-                        console.log('Grid found, loading products');
-                        grid.innerHTML = products.map(product => createSimpleProductCard(product)).join('');
-                        console.log('Products loaded successfully!');
-                    } else {
-                        console.log('Grid not found, retrying...');
-                        setTimeout(loadProducts, 100);
-                    }
-                }
-                
-                // Start loading
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', loadProducts);
+                // Use existing cart functionality
+                if (typeof addToCart === 'function') {
+                    addToCart(productId, size, quantity);
                 } else {
-                    loadProducts();
+                    alert(`Added ${quantity}x ${productId} (${size}) to cart!`);
                 }
-            })();
+            }
         </script>
 
         <!-- About Section -->
