@@ -3279,40 +3279,85 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
         function loadCustomersData() {
             console.log('Loading customers data...');
             
+            // Get registered users from authentication system
+            const registeredUsers = JSON.parse(localStorage.getItem('bumableUsers')) || [];
+            console.log('Found registered users:', registeredUsers.length);
+            
+            // Get login activity data
+            const loginHistory = JSON.parse(localStorage.getItem('bumableLoginHistory')) || [];
+            console.log('Found login activities:', loginHistory.length);
+            
             // Get orders to extract customer information
             const orders = JSON.parse(localStorage.getItem('bumableOrders')) || [];
             console.log('Found orders:', orders.length);
             
-            // Extract unique customers from orders
+            // Process registered users first
             const customerMap = {};
             
+            registeredUsers.forEach(user => {
+                customerMap[user.email] = {
+                    id: user.id,
+                    name: `${user.firstname} ${user.lastname}`,
+                    email: user.email,
+                    phone: user.phone || 'N/A',
+                    registrationDate: user.createdAt,
+                    lastLogin: user.lastLogin,
+                    loginCount: user.loginCount || 0,
+                    isRegistered: true,
+                    isActive: user.isActive,
+                    marketingConsent: user.marketingConsent,
+                    orders: 0,
+                    totalSpent: user.totalSpent || 0,
+                    firstOrder: null,
+                    lastOrder: null,
+                    customerType: user.customerType || 'new'
+                };
+            });
+            
+            // Add order information to registered users and create guest customers
             orders.forEach(order => {
                 const customerId = order.email || order.phone || order.orderId;
                 const customerName = (order.firstName || '') + ' ' + (order.lastName || '');
                 
                 if (!customerMap[customerId]) {
+                    // Create guest customer entry
                     customerMap[customerId] = {
                         id: customerId,
                         name: customerName.trim() || 'Guest Customer',
                         email: order.email || 'N/A',
                         phone: order.phone || 'N/A',
+                        registrationDate: null,
+                        lastLogin: null,
+                        loginCount: 0,
+                        isRegistered: false,
+                        isActive: true,
+                        marketingConsent: false,
                         orders: 0,
                         totalSpent: 0,
                         firstOrder: order.orderDate,
-                        lastOrder: order.orderDate
+                        lastOrder: order.orderDate,
+                        customerType: 'guest'
                     };
                 }
                 
                 // Update customer stats
-                customerMap[customerId].orders += 1;
-                customerMap[customerId].totalSpent += order.total || 0;
+                const customer = customerMap[customerId];
+                customer.orders += 1;
+                customer.totalSpent += order.total || 0;
                 
                 // Update order dates
-                if (new Date(order.orderDate) < new Date(customerMap[customerId].firstOrder)) {
-                    customerMap[customerId].firstOrder = order.orderDate;
+                if (!customer.firstOrder || new Date(order.orderDate) < new Date(customer.firstOrder)) {
+                    customer.firstOrder = order.orderDate;
                 }
-                if (new Date(order.orderDate) > new Date(customerMap[customerId].lastOrder)) {
-                    customerMap[customerId].lastOrder = order.orderDate;
+                if (!customer.lastOrder || new Date(order.orderDate) > new Date(customer.lastOrder)) {
+                    customer.lastOrder = order.orderDate;
+                }
+                
+                // Update customer type based on order count
+                if (customer.orders > 1) {
+                    customer.customerType = 'returning';
+                } else if (customer.isRegistered) {
+                    customer.customerType = 'registered';
                 }
             });
             
@@ -3331,21 +3376,51 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             // Get contact queries to include in customer count
             const contactQueries = JSON.parse(localStorage.getItem('bumableContactQueries') || '[]');
             
+            // Get login activity data for recent activity tracking
+            const loginHistory = JSON.parse(localStorage.getItem('bumableLoginHistory') || '[]');
+            
+            // Separate registered and guest customers
+            const registeredCustomers = customers.filter(c => c.isRegistered);
+            const guestCustomers = customers.filter(c => !c.isRegistered);
+            
             // Get unique customers from contact queries
             const uniqueContactEmails = [...new Set(contactQueries.map(q => q.email))];
             const contactCustomers = uniqueContactEmails.length;
             
-            // Combine order customers and contact customers
-            const totalCustomers = Math.max(customers.length, contactCustomers);
+            // Calculate totals
+            const totalCustomers = customers.length + Math.max(0, contactCustomers - customers.filter(c => c.email !== 'N/A').length);
+            const totalRegistered = registeredCustomers.length;
+            const totalGuests = guestCustomers.length;
             const totalOrders = customers.reduce((sum, c) => sum + c.orders, 0);
             const totalValue = customers.reduce((sum, c) => sum + c.totalSpent, 0);
             
-            // Calculate new customers this month (including contact queries)
+            // Calculate recent activity (last 7 days)
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            
+            const recentLogins = loginHistory.filter(activity => 
+                new Date(activity.timestamp) > sevenDaysAgo && 
+                activity.activity === 'successful_login'
+            ).length;
+            
+            const recentRegistrations = registeredCustomers.filter(customer => 
+                customer.registrationDate && new Date(customer.registrationDate) > sevenDaysAgo
+            ).length;
+            
+            // Calculate new customers this month (including contact queries and registrations)
             const currentMonth = new Date().getMonth();
             const currentYear = new Date().getFullYear();
             
+            // New registrations this month
+            const newRegistrations = registeredCustomers.filter(customer => {
+                if (!customer.registrationDate) return false;
+                const regDate = new Date(customer.registrationDate);
+                return regDate.getMonth() === currentMonth && regDate.getFullYear() === currentYear;
+            }).length;
+            
             // New order customers this month
             const newOrderCustomers = customers.filter(customer => {
+                if (!customer.firstOrder) return false;
                 const firstOrder = new Date(customer.firstOrder);
                 return firstOrder.getMonth() === currentMonth && firstOrder.getFullYear() === currentYear;
             }).length;
@@ -3356,11 +3431,22 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                 return queryDate.getMonth() === currentMonth && queryDate.getFullYear() === currentYear;
             }).length;
             
-            const newCustomers = Math.max(newOrderCustomers, newContactCustomers);
+            const newCustomers = Math.max(newRegistrations, newOrderCustomers, newContactCustomers);
             
-            // Update UI
+            // Update UI with enhanced customer stats
             document.getElementById('customers-total').textContent = totalCustomers;
             document.getElementById('customers-new').textContent = newCustomers;
+            
+            // Update additional customer metrics if elements exist
+            const registeredCountEl = document.getElementById('customers-registered');
+            const guestsCountEl = document.getElementById('customers-guests');
+            const recentLoginsEl = document.getElementById('recent-logins');
+            const recentRegEl = document.getElementById('recent-registrations');
+            
+            if (registeredCountEl) registeredCountEl.textContent = totalRegistered;
+            if (guestsCountEl) guestsCountEl.textContent = totalGuests;
+            if (recentLoginsEl) recentLoginsEl.textContent = recentLogins;
+            if (recentRegEl) recentRegEl.textContent = recentRegistrations;
             document.getElementById('customers-orders').textContent = totalOrders;
             document.getElementById('customers-value').textContent = `₹${totalValue.toLocaleString('en-IN')}`;
         }
@@ -3401,22 +3487,50 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             customers.sort((a, b) => b.totalSpent - a.totalSpent);
 
             tbody.innerHTML = customers.map(customer => {
-                const lastOrderDate = new Date(customer.lastOrder).toLocaleDateString('en-IN');
-                const customerValue = customer.orders > 1 ? 'Repeat' : 'New';
+                const lastOrderDate = customer.lastOrder ? new Date(customer.lastOrder).toLocaleDateString('en-IN') : 'N/A';
+                const registrationDate = customer.registrationDate ? new Date(customer.registrationDate).toLocaleDateString('en-IN') : 'N/A';
+                const lastLoginDate = customer.lastLogin ? new Date(customer.lastLogin).toLocaleDateString('en-IN') : 'N/A';
+                
+                // Customer status badge
+                let statusBadge = '';
+                let statusClass = '';
+                
+                if (customer.isRegistered) {
+                    statusBadge = customer.isActive ? 'Registered' : 'Inactive';
+                    statusClass = customer.isActive ? 'status-confirmed' : 'status-cancelled';
+                } else {
+                    statusBadge = 'Guest';
+                    statusClass = 'status-pending';
+                }
                 
                 return `
                     <tr>
                         <td>
-                            <strong>${customer.name}</strong>
-                            <div class="customer-info">${customerValue} Customer</div>
+                            <div class="customer-name">
+                                <strong>${customer.name}</strong>
+                                ${customer.isRegistered ? '<i class="fas fa-user-check" style="color: #28a745; margin-left: 5px;" title="Registered User"></i>' : '<i class="fas fa-user" style="color: #6c757d; margin-left: 5px;" title="Guest User"></i>'}
+                            </div>
+                            <div class="customer-info">
+                                <span class="status-badge ${statusClass}">${statusBadge}</span>
+                                <span class="customer-type">${customer.customerType}</span>
+                            </div>
                         </td>
-                        <td>${customer.email}</td>
-                        <td>${customer.phone}</td>
+                        <td>
+                            <div>${customer.email}</div>
+                            ${customer.registrationDate ? `<small style="color: #666;">Joined: ${registrationDate}</small>` : ''}
+                        </td>
+                        <td>
+                            <div>${customer.phone}</div>
+                            ${customer.isRegistered ? `<small style="color: #666;">Logins: ${customer.loginCount}</small>` : ''}
+                        </td>
                         <td>
                             <span class="status-badge status-confirmed">${customer.orders}</span>
                         </td>
                         <td class="order-total">₹${customer.totalSpent.toLocaleString('en-IN')}</td>
-                        <td>${lastOrderDate}</td>
+                        <td>
+                            <div>${lastOrderDate}</div>
+                            ${customer.lastLogin ? `<small style="color: #666;">Last login: ${lastLoginDate}</small>` : ''}
+                        </td>
                         <td>
                             <button class="action-btn btn-primary" onclick="viewCustomerDetails('${customer.id}')" title="View Details">
                                 <i class="fas fa-eye"></i>
@@ -3424,6 +3538,11 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                             <button class="action-btn btn-success" onclick="viewCustomerOrders('${customer.id}')" title="View Orders">
                                 <i class="fas fa-shopping-bag"></i>
                             </button>
+                            ${customer.isRegistered ? `
+                                <button class="action-btn ${customer.isActive ? 'btn-warning' : 'btn-info'}" onclick="toggleCustomerStatus('${customer.id}')" title="${customer.isActive ? 'Deactivate' : 'Activate'} Account">
+                                    <i class="fas fa-${customer.isActive ? 'ban' : 'check'}"></i>
+                                </button>
+                            ` : ''}
                             <button class="action-btn btn-danger" onclick="deleteCustomer('${customer.id}')" title="Delete Customer">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -3464,6 +3583,34 @@ Total Spent: ₹${totalSpent.toLocaleString('en-IN')}
 First Order: ${new Date(firstOrder).toLocaleDateString('en-IN')}
 Last Order: ${new Date(lastOrder).toLocaleDateString('en-IN')}
 Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
+        }
+        
+        // Toggle customer account status
+        function toggleCustomerStatus(customerId) {
+            const users = JSON.parse(localStorage.getItem('bumableUsers') || '[]');
+            const userIndex = users.findIndex(user => user.id === customerId);
+            
+            if (userIndex === -1) {
+                alert('User not found.');
+                return;
+            }
+            
+            const user = users[userIndex];
+            const action = user.isActive ? 'deactivate' : 'activate';
+            
+            if (confirm(`Are you sure you want to ${action} ${user.firstname} ${user.lastname}'s account?`)) {
+                user.isActive = !user.isActive;
+                users[userIndex] = user;
+                
+                // Save updated users
+                localStorage.setItem('bumableUsers', JSON.stringify(users));
+                
+                // Show notification
+                alert(`Account ${action}d successfully.`);
+                
+                // Refresh customers display
+                loadCustomersData();
+            }
         }
         
         // View customer orders

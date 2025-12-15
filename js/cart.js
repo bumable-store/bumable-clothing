@@ -49,6 +49,16 @@ class ShoppingCart {
 
     // Add item to cart
     addItem(productId, size, quantity = 1) {
+        // 🔐 AUTHENTICATION CHECK: Require login for cart actions
+        if (!window.authSystem || !window.authSystem.isLoggedIn()) {
+            if (window.authSystem) {
+                window.authSystem.requireLogin('add items to cart');
+            } else {
+                alert('Please login to add items to your cart.');
+            }
+            return false;
+        }
+
         // Validate inputs
         if (!productId || !size || quantity < 1) {
             this.showNotification('Invalid product details', 'error');
@@ -300,6 +310,15 @@ class ShoppingCart {
 
     // Proceed to checkout
     proceedToCheckout() {
+        // 🔐 AUTHENTICATION CHECK: Require login for checkout
+        if (!window.authSystem || !window.authSystem.isLoggedIn()) {
+            if (window.authSystem) {
+                window.authSystem.requireLogin('proceed to checkout');
+            } else {
+                alert('Please login to proceed to checkout.');
+            }
+            return false;
+        }
         
         if (this.items.length === 0) {
             this.showNotification('Your cart is empty', 'warning');
