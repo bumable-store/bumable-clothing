@@ -1,7 +1,25 @@
 // BUMABLE Main JavaScript - Production Version
 
+// Auto-configure Supabase on first load
+function initSupabaseConfig() {
+    if (!localStorage.getItem('supabase_url')) {
+        localStorage.setItem('supabase_url', 'https://dovwxwqjsqgpsskwnqwc.supabase.co');
+        localStorage.setItem('supabase_key', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvdnd4d3Fqc3FncHNza3ducXdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU4MDQ0NzUsImV4cCI6MjA4MTM4MDQ3NX0.-mtkMmsMyKo01Zn0hxlNzuj-_p3JmWVbXz8_fJXtVaY');
+        console.log('✅ Supabase configuration initialized automatically');
+    }
+    
+    // Initialize Supabase database
+    if (!window.supabaseDB) {
+        window.supabaseDB = new SupabaseDB();
+        console.log('✅ Supabase database initialized');
+    }
+}
+
 // Initialize everything when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Supabase first
+    initSupabaseConfig();
+    
     // Initialize basic functions
     initNavigation();
     initContactForm();

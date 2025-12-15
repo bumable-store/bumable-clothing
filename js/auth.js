@@ -1,15 +1,11 @@
-// BUMABLE User Authentication System
-// Professional e-commerce user management with login tracking
+// BUMABLE User Authentication System (SUPABASE ONLY)
+// Professional e-commerce user management with cloud database
 
 class UserAuthentication {
     constructor() {
         this.currentUser = null;
-        this.users = [];
         this.sessionKey = 'bumableUserSession';
-        this.usersKey = 'bumableUsers';
-        this.loginHistoryKey = 'bumableLoginHistory';
         
-        this.loadUsers();
         this.loadCurrentSession();
         this.initializeAuth();
     }
@@ -24,42 +20,23 @@ class UserAuthentication {
         this.setupAutoLogout();
     }
 
-    // Load users from localStorage
-    loadUsers() {
-        try {
-            const storedUsers = localStorage.getItem(this.usersKey);
-            this.users = storedUsers ? JSON.parse(storedUsers) : [];
-        } catch (error) {
-            console.error('Error loading users:', error);
-            this.users = [];
-        }
+    // Check if Supabase is ready
+    isSupabaseReady() {
+        return window.supabaseDB && window.supabaseDB.isReady && window.supabaseDB.isReady();
     }
 
-    // Save users to localStorage
-    saveUsers() {
-        try {
-            localStorage.setItem(this.usersKey, JSON.stringify(this.users));
-        } catch (error) {
-            console.error('Error saving users:', error);
-        }
-    }
-
-    // Load current user session
+    // Load current user session (sessionStorage only - no localStorage)
     loadCurrentSession() {
         try {
-            const session = localStorage.getItem(this.sessionKey);
-            if (session) {
-                const sessionData = JSON.parse(session);
-                
-                // Check if session is still valid (24 hours)
-                const now = new Date().getTime();
-                if (sessionData.expiresAt > now) {
-                    this.currentUser = sessionData.user;
-                    this.recordLoginActivity(this.currentUser.email, 'session_restored');
-                } else {
-                    // Session expired
-                    this.logout();
-                }
+            if (!this.isSupabaseReady()) {
+                console.log('⚠️ Supabase not ready, skipping session load');
+                return;
+            }
+
+            const sessionResult = window.supabaseDB.getCurrentSession();
+            if (sessionResult.success) {
+                this.currentUser = sessionResult.session.user;
+                console.log('✅ Session restored from Supabase');
             }
         } catch (error) {
             console.error('Error loading session:', error);
@@ -67,15 +44,10 @@ class UserAuthentication {
         }
     }
 
-    // Save current session
+    // Save current session (Supabase only)
     saveSession() {
-        if (this.currentUser) {
-            const sessionData = {
-                user: this.currentUser,
-                loginTime: new Date().getTime(),
-                expiresAt: new Date().getTime() + (24 * 60 * 60 * 1000) // 24 hours
-            };
-            localStorage.setItem(this.sessionKey, JSON.stringify(sessionData));
+        if (this.currentUser && this.isSupabaseReady()) {
+            window.supabaseDB.createSession(this.currentUser);
         }
     }
 
@@ -589,13 +561,12 @@ class UserAuthentication {
         });
     }
 
-    // Handle login
+    // Handle login (Supabase only)
     async handleLogin(e) {
         e.preventDefault();
         const formData = new FormData(e.target);
         const email = formData.get('email').toLowerCase().trim();
         const password = formData.get('password');
-        const remember = formData.get('remember');
 
         // Clear previous errors
         this.hideError('login');
@@ -606,51 +577,72 @@ class UserAuthentication {
             return;
         }
 
-        // Find user
-        const user = this.users.find(u => u.email === email);
-        if (!user) {
-            this.showError('login', 'No account found with this email address');
+        if (!this.isSupabaseReady()) {
+            this.showError('login', 'Database not connected. Please try again later.');
             return;
         }
 
-        // Check password (in production, use proper password hashing)
-        if (user.password !== password) {
-            this.showError('login', 'Incorrect password');
-            this.recordLoginActivity(email, 'failed_login');
-            return;
+        try {
+            // Get user from Supabase
+            const userResult = await window.supabaseDB.getUserByEmail(email);
+            
+            if (!userResult.success || !userResult.user) {
+                this.showError('login', 'No account found with this email address');
+                return;
+            }
+
+            const user = userResult.user;
+
+            // Check password (Note: In production, passwords should be hashed)
+            // For now, this is a simple comparison - implement proper password hashing
+            if (!user.password || user.password !== password) {
+                this.showError('login', 'Incorrect password');
+                // Log failed login
+                await window.supabaseDB.logUserActivity(user.id, email, 'failed_login', 'Incorrect password');
+                return;
+            }
+
+            // Check if account is active
+            if (user.status !== 'active') {
+                this.showError('login', 'Your account has been deactivated. Please contact support.');
+                return;
+            }
+
+            // Update login in Supabase
+            const loginResult = await window.supabaseDB.updateUserLogin(email);
+            
+            if (loginResult.success) {
+                this.currentUser = loginResult.user;
+            } else {
+                this.currentUser = user; // Fallback to original user data
+            }
+
+            // Save session
+            this.saveSession();
+
+            // Update UI
+            this.updateUIState();
+            this.closeAllModals();
+            
+            // Show success message
+            this.showNotification('Welcome back! You are now logged in.', 'success');
+            
+        } catch (error) {
+            console.error('Login error:', error);
+            this.showError('login', 'Login failed. Please try again.');
         }
-
-        // Check if account is active
-        if (!user.isActive) {
-            this.showError('login', 'Your account has been deactivated. Please contact support.');
-            return;
-        }
-
-        // Successful login
-        this.currentUser = user;
-        
-        // Update last login
-        user.lastLogin = new Date().toISOString();
-        user.loginCount = (user.loginCount || 0) + 1;
-        this.saveUsers();
-
-        // Save session
-        this.saveSession();
-        
-        // Record login activity
-        this.recordLoginActivity(email, 'successful_login');
-
-        // Update UI
-        this.updateUIState();
-        this.closeAllModals();
-        
-        // Show success message
-        this.showNotification('Welcome back! You are now logged in.', 'success');
     }
 
     // Handle registration
     async handleRegister(e) {
         e.preventDefault();
+        
+        // Check if Supabase is ready
+        if (!window.supabaseDB || !window.supabaseDB.isReady()) {
+            this.showError('register', 'Database not available. Please try again later.');
+            return;
+        }
+        
         const formData = new FormData(e.target);
         
         const userData = {
@@ -674,47 +666,38 @@ class UserAuthentication {
             return;
         }
 
-        // Check if email already exists
-        if (this.users.find(u => u.email === userData.email)) {
-            this.showError('register', 'An account with this email already exists');
-            return;
+        try {
+            // Check if email already exists using Supabase
+            const existingUser = await window.supabaseDB.getUserByEmail(userData.email);
+            if (existingUser) {
+                this.showError('register', 'An account with this email already exists');
+                return;
+            }
+
+            // Register user in Supabase cloud database
+            const result = await window.supabaseDB.registerUser(userData);
+            if (!result.success) {
+                this.showError('register', result.error || 'Registration failed. Please try again.');
+                return;
+            }
+
+            // Set current user with the registered user data
+            this.currentUser = result.user;
+            
+            // Save session (temporary session data only, user data is in cloud)
+            this.saveSession();
+
+            // Update UI
+            this.updateUIState();
+            this.closeAllModals();
+            
+            // Show success message
+            this.showNotification('Account created successfully! Welcome to BUMABLE!', 'success');
+            
+        } catch (error) {
+            console.error('Registration error:', error);
+            this.showError('register', 'Registration failed. Please try again.');
         }
-
-        // Create new user
-        const newUser = {
-            id: 'user_' + Date.now(),
-            firstname: userData.firstname,
-            lastname: userData.lastname,
-            email: userData.email,
-            phone: userData.phone,
-            password: userData.password, // In production, hash this
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString(),
-            loginCount: 1,
-            marketingConsent: userData.marketing,
-            purchases: [],
-            totalSpent: 0,
-            customerType: 'new'
-        };
-
-        // Add user to database
-        this.users.push(newUser);
-        this.saveUsers();
-
-        // Log them in automatically
-        this.currentUser = newUser;
-        this.saveSession();
-        
-        // Record registration activity
-        this.recordLoginActivity(userData.email, 'registration');
-
-        // Update UI
-        this.updateUIState();
-        this.closeAllModals();
-        
-        // Show success message
-        this.showNotification('Account created successfully! Welcome to BUMABLE!', 'success');
     }
 
     // Validate registration data
@@ -1171,11 +1154,15 @@ class UserAuthentication {
     // Logout user
     logout() {
         if (this.currentUser) {
-            this.recordLoginActivity(this.currentUser.email, 'logout');
+            // Record logout activity in Supabase if available
+            if (window.supabaseDB && window.supabaseDB.isReady()) {
+                window.supabaseDB.recordActivity(this.currentUser.email, 'logout')
+                    .catch(error => console.error('Failed to record logout activity:', error));
+            }
         }
         
         this.currentUser = null;
-        localStorage.removeItem(this.sessionKey);
+        sessionStorage.removeItem(this.sessionKey);  // Use sessionStorage instead of localStorage
         this.updateUIState();
         this.showNotification('You have been logged out successfully.', 'info');
     }
@@ -1190,35 +1177,20 @@ class UserAuthentication {
         return this.currentUser;
     }
 
-    // Record login activity for admin tracking
+    // Record login activity for admin tracking (now handled by Supabase)
     recordLoginActivity(email, activity) {
-        try {
-            const loginHistory = JSON.parse(localStorage.getItem(this.loginHistoryKey) || '[]');
-            const activityRecord = {
-                email: email,
-                activity: activity,
-                timestamp: new Date().toISOString(),
-                userAgent: navigator.userAgent,
-                ip: 'localhost' // In production, get real IP
-            };
-            
-            loginHistory.push(activityRecord);
-            
-            // Keep only last 100 activities
-            if (loginHistory.length > 100) {
-                loginHistory.splice(0, loginHistory.length - 100);
-            }
-            
-            localStorage.setItem(this.loginHistoryKey, JSON.stringify(loginHistory));
-        } catch (error) {
-            console.error('Error recording login activity:', error);
+        // This method is deprecated - activities are now recorded directly in Supabase
+        // through the database methods: updateUserLogin, recordActivity, etc.
+        if (window.supabaseDB && window.supabaseDB.isReady()) {
+            window.supabaseDB.recordActivity(email, activity)
+                .catch(error => console.error('Failed to record activity:', error));
         }
     }
 
     // Setup auto logout after 24 hours
     setupAutoLogout() {
         setInterval(() => {
-            const session = localStorage.getItem(this.sessionKey);
+            const session = sessionStorage.getItem(this.sessionKey);  // Use sessionStorage instead
             if (session) {
                 const sessionData = JSON.parse(session);
                 const now = new Date().getTime();
