@@ -397,6 +397,88 @@ class SupabaseDB {
     }
 
     // ==========================================
+    // ADMIN DASHBOARD METHODS
+    // ==========================================
+
+    /**
+     * Get all orders for admin dashboard
+     */
+    async getAllOrders() {
+        try {
+            const { data, error } = await this.client
+                .from('orders')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            return {
+                success: true,
+                orders: data || []
+            };
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+            return {
+                success: false,
+                error: error.message,
+                orders: []
+            };
+        }
+    }
+
+    /**
+     * Get all users for admin dashboard
+     */
+    async getAllUsers() {
+        try {
+            const { data, error } = await this.client
+                .from('users')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            return {
+                success: true,
+                users: data || []
+            };
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            return {
+                success: false,
+                error: error.message,
+                users: []
+            };
+        }
+    }
+
+    /**
+     * Get all contact queries for admin dashboard
+     */
+    async getAllContacts() {
+        try {
+            const { data, error } = await this.client
+                .from('contacts')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            return {
+                success: true,
+                contacts: data || []
+            };
+        } catch (error) {
+            console.error('Error fetching contacts:', error);
+            return {
+                success: false,
+                error: error.message,
+                contacts: []
+            };
+        }
+    }
+
+    // ==========================================
     // CONFIGURATION
     // ==========================================
 

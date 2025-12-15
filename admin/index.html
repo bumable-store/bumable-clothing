@@ -1252,23 +1252,26 @@
         }
 
         // Initialize admin dashboard
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             // Initialize Supabase first
             initSupabaseConfig();
             
-            // Check authentication first
-            if (!checkAdminAuthentication()) {
-                return; // Redirected to login
-            }
-            
-            loadAdminData();
-            updateLastUpdated();
-            
-            // Initialize product sync
-            initializeProductSync();
-            
-            // Show dashboard by default
-            showSection('dashboard');
+            // Wait a moment for Supabase to initialize
+            setTimeout(async () => {
+                // Check authentication first
+                if (!checkAdminAuthentication()) {
+                    return; // Redirected to login
+                }
+                
+                await loadAdminData();
+                updateLastUpdated();
+                
+                // Initialize product sync
+                initializeProductSync();
+                
+                // Show dashboard by default
+                showSection('dashboard');
+            }, 1000);
         });
 
         // Check admin authentication
@@ -1324,19 +1327,32 @@
             }
         }
 
-        // Load all admin data
-        function loadAdminData() {
-            loadDashboardStats();
-            loadAdminOrders();
-            loadAdminProducts(); // Add this line
-            loadContactQueries(); // Add contact queries loading
+        // Load all admin data from Supabase cloud database
+        async function loadAdminData() {
+            await loadDashboardStats();
+            await loadAdminOrders();
+            await loadCustomersData();
+            loadAdminProducts(); // Keep this synchronous for now
+            loadContactQueries(); // Keep this synchronous for now
         }
 
         // Load dashboard statistics
-        function loadDashboardStats() {
+        async function loadDashboardStats() {
             try {
-                const orders = JSON.parse(localStorage.getItem('bumableOrders')) || [];
-                const customers = JSON.parse(localStorage.getItem('bumableCustomers')) || [];
+                if (!window.supabaseDB || !window.supabaseDB.isReady()) {
+                    console.log('Supabase not ready, using default stats');
+                    document.getElementById('total-orders').textContent = '0';
+                    document.getElementById('total-revenue').textContent = '₹0';
+                    document.getElementById('total-customers').textContent = '0';
+                    return;
+                }
+
+                // Get data from Supabase cloud database
+                const ordersResult = await window.supabaseDB.getAllOrders();
+                const customersResult = await window.supabaseDB.getAllUsers();
+                
+                const orders = ordersResult.success ? ordersResult.orders : [];
+                const customers = customersResult.success ? customersResult.users : [];
                 
                 // Calculate stats
                 const totalOrders = orders.length;
@@ -1350,14 +1366,33 @@
                 
             } catch (error) {
                 console.error('Error loading dashboard stats:', error);
+                // Fallback to default values
+                document.getElementById('total-orders').textContent = '0';
+                document.getElementById('total-revenue').textContent = '₹0';
+                document.getElementById('total-customers').textContent = '0';
             }
         }
 
-        // Load orders for admin management
-        function loadAdminOrders() {
+        // Load orders from Supabase cloud database
+        async function loadAdminOrders() {
             try {
-                allAdminOrders = JSON.parse(localStorage.getItem('bumableOrders')) || [];
-                displayAdminOrders(allAdminOrders);
+                if (!window.supabaseDB || !window.supabaseDB.isReady()) {
+                    console.log('Supabase not ready, showing empty orders');
+                    allAdminOrders = [];
+                    displayAdminOrders([]);
+                    return;
+                }
+
+                const result = await window.supabaseDB.getAllOrders();
+                if (result.success) {
+                    allAdminOrders = result.orders;
+                    displayAdminOrders(allAdminOrders);
+                    console.log(`✅ Loaded ${allAdminOrders.length} orders from cloud database`);
+                } else {
+                    console.error('Failed to load orders from Supabase:', result.error);
+                    allAdminOrders = [];
+                    displayAdminOrders([]);
+                }
             } catch (error) {
                 console.error('Error loading admin orders:', error);
                 allAdminOrders = [];
@@ -3296,97 +3331,106 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
         
         // ===== CUSTOMER MANAGEMENT FUNCTIONS =====
         
-        // Load customers data
-        function loadCustomersData() {
-            console.log('Loading customers data...');
+        // Load customers data from Supabase cloud database
+        async function loadCustomersData() {
+            console.log('Loading customers data from cloud database...');
             
-            // Get registered users from authentication system
-            const registeredUsers = JSON.parse(localStorage.getItem('bumableUsers')) || [];
-            console.log('Found registered users:', registeredUsers.length);
-            
-            // Get login activity data
-            const loginHistory = JSON.parse(localStorage.getItem('bumableLoginHistory')) || [];
-            console.log('Found login activities:', loginHistory.length);
-            
-            // Get orders to extract customer information
-            const orders = JSON.parse(localStorage.getItem('bumableOrders')) || [];
-            console.log('Found orders:', orders.length);
-            
-            // Process registered users first
-            const customerMap = {};
-            
-            registeredUsers.forEach(user => {
-                customerMap[user.email] = {
-                    id: user.id,
-                    name: `${user.firstname} ${user.lastname}`,
-                    email: user.email,
-                    phone: user.phone || 'N/A',
-                    registrationDate: user.createdAt,
-                    lastLogin: user.lastLogin,
-                    loginCount: user.loginCount || 0,
-                    isRegistered: true,
-                    isActive: user.isActive,
-                    marketingConsent: user.marketingConsent,
-                    orders: 0,
-                    totalSpent: user.totalSpent || 0,
-                    firstOrder: null,
-                    lastOrder: null,
-                    customerType: user.customerType || 'new'
-                };
-            });
-            
-            // Add order information to registered users and create guest customers
-            orders.forEach(order => {
-                const customerId = order.email || order.phone || order.orderId;
-                const customerName = (order.firstName || '') + ' ' + (order.lastName || '');
+            try {
+                if (!window.supabaseDB || !window.supabaseDB.isReady()) {
+                    console.log('Supabase not ready, showing empty customer list');
+                    displayCustomers([]);
+                    return;
+                }
+
+                // Get all users from Supabase
+                const usersResult = await window.supabaseDB.getAllUsers();
+                const ordersResult = await window.supabaseDB.getAllOrders();
                 
-                if (!customerMap[customerId]) {
-                    // Create guest customer entry
-                    customerMap[customerId] = {
-                        id: customerId,
-                        name: customerName.trim() || 'Guest Customer',
-                        email: order.email || 'N/A',
-                        phone: order.phone || 'N/A',
-                        registrationDate: null,
-                        lastLogin: null,
-                        loginCount: 0,
-                        isRegistered: false,
-                        isActive: true,
-                        marketingConsent: false,
-                        orders: 0,
-                        totalSpent: 0,
-                        firstOrder: order.orderDate,
-                        lastOrder: order.orderDate,
-                        customerType: 'guest'
+                const users = usersResult.success ? usersResult.users : [];
+                const orders = ordersResult.success ? ordersResult.orders : [];
+                
+                console.log('Found users:', users.length);
+                console.log('Found orders:', orders.length);
+                
+                // Process users and calculate customer data
+                const customerMap = {};
+                
+                users.forEach(user => {
+                    // Calculate customer's orders and total spent
+                    const customerOrders = orders.filter(order => order.customer_email === user.email);
+                    const totalSpent = customerOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+                    
+                    customerMap[user.email] = {
+                        id: user.id,
+                        name: `${user.first_name} ${user.last_name}`,
+                        email: user.email,
+                        phone: user.phone || 'N/A',
+                        registrationDate: user.created_at,
+                        lastLogin: user.last_login || user.created_at,
+                        loginCount: user.login_count || 1,
+                        isRegistered: true,
+                        isActive: user.is_active !== false,
+                        marketingConsent: user.marketing_consent || false,
+                        orders: customerOrders.length,
+                        totalSpent: totalSpent,
+                        firstOrder: customerOrders.length > 0 ? customerOrders[customerOrders.length - 1].created_at : null,
+                        lastOrder: customerOrders.length > 0 ? customerOrders[0].created_at : null,
+                        customerType: totalSpent > 5000 ? 'premium' : (customerOrders.length > 0 ? 'returning' : 'new')
                     };
-                }
+                });
                 
-                // Update customer stats
-                const customer = customerMap[customerId];
-                customer.orders += 1;
-                customer.totalSpent += order.total || 0;
+                // Add guest customers from orders (customers who ordered without registering)
+                orders.forEach(order => {
+                    const customerId = order.customer_email || order.customer_phone || order.id;
+                    const customerName = `${order.customer_first_name || ''} ${order.customer_last_name || ''}`.trim();
+                    
+                    if (!customerMap[customerId] && order.customer_email) {
+                        // Create guest customer entry
+                        customerMap[customerId] = {
+                            id: customerId,
+                            name: customerName || 'Guest Customer',
+                            email: order.customer_email || 'N/A',
+                            phone: order.customer_phone || 'N/A',
+                            registrationDate: null,
+                            lastLogin: null,
+                            loginCount: 0,
+                            isRegistered: false,
+                            isActive: true,
+                            marketingConsent: false,
+                            orders: 1,
+                            totalSpent: order.total || 0,
+                            firstOrder: order.created_at,
+                            lastOrder: order.created_at,
+                            customerType: 'guest'
+                        };
+                    } else {
+                        // Update existing customer's order stats
+                        const customer = customerMap[customerId];
+                        customer.orders += 1;
+                        customer.totalSpent += order.total || 0;
+                        
+                        // Update order dates
+                        if (!customer.firstOrder || new Date(order.created_at) < new Date(customer.firstOrder)) {
+                            customer.firstOrder = order.created_at;
+                        }
+                        if (!customer.lastOrder || new Date(order.created_at) > new Date(customer.lastOrder)) {
+                            customer.lastOrder = order.created_at;
+                        }
+                    }
+                });
                 
-                // Update order dates
-                if (!customer.firstOrder || new Date(order.orderDate) < new Date(customer.firstOrder)) {
-                    customer.firstOrder = order.orderDate;
-                }
-                if (!customer.lastOrder || new Date(order.orderDate) > new Date(customer.lastOrder)) {
-                    customer.lastOrder = order.orderDate;
-                }
+                const customers = Object.values(customerMap);
+                console.log('Processed customers:', customers.length);
                 
-                // Update customer type based on order count
-                if (customer.orders > 1) {
-                    customer.customerType = 'returning';
-                } else if (customer.isRegistered) {
-                    customer.customerType = 'registered';
-                }
-            });
-            
-            const customers = Object.values(customerMap);
-            console.log('Processed customers:', customers.length);
-            
-            // Update customer stats
-            updateCustomerStats(customers);
+                // Update customer stats and display
+                updateCustomerStats(customers);
+                displayCustomers(customers);
+                
+            } catch (error) {
+                console.error('Error loading customers data:', error);
+                displayCustomers([]);
+            }
+        }
             
             // Display customers
             displayCustomers(customers);
