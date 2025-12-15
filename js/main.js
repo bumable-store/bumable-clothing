@@ -82,11 +82,32 @@ function initAdminSync() {
 function initNavigation() {
     const navToggle = document.getElementById('nav-toggle');
     const navMenu = document.getElementById('nav-menu');
+    const navList = document.querySelector('.nav-list');
     
     if (navToggle && navMenu) {
-        navToggle.addEventListener('click', function() {
+        navToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
             navToggle.classList.toggle('active');
-            navMenu.classList.toggle('active');
+            navList.classList.toggle('show');
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!navMenu.contains(e.target) && !navToggle.contains(e.target)) {
+                navToggle.classList.remove('active');
+                navList.classList.remove('show');
+            }
+        });
+        
+        // Close menu when clicking on nav links (mobile)
+        const navLinks = document.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                if (window.innerWidth <= 768) {
+                    navToggle.classList.remove('active');
+                    navList.classList.remove('show');
+                }
+            });
         });
     }
 }
