@@ -96,7 +96,7 @@ class UserAuthentication {
                         </div>
                         <div class="form-group">
                             <label for="login-password">Password</label>
-                            <div class="password-input">
+                            <div class="password-input-wrapper">
                                 <input type="password" id="login-password" name="password" required placeholder="Enter your password">
                                 <button type="button" class="toggle-password" onclick="authSystem.togglePassword('login-password')">
                                     <i class="fas fa-eye"></i>
@@ -148,7 +148,7 @@ class UserAuthentication {
                         </div>
                         <div class="form-group">
                             <label for="register-password">Password</label>
-                            <div class="password-input">
+                            <div class="password-input-wrapper">
                                 <input type="password" id="register-password" name="password" required placeholder="Create a strong password">
                                 <button type="button" class="toggle-password" onclick="authSystem.togglePassword('register-password')">
                                     <i class="fas fa-eye"></i>
@@ -163,7 +163,7 @@ class UserAuthentication {
                         </div>
                         <div class="form-group">
                             <label for="register-confirm-password">Confirm Password</label>
-                            <div class="password-input">
+                            <div class="password-input-wrapper">
                                 <input type="password" id="register-confirm-password" name="confirmPassword" required placeholder="Confirm your password">
                                 <button type="button" class="toggle-password" onclick="authSystem.togglePassword('register-confirm-password')">
                                     <i class="fas fa-eye"></i>
@@ -300,29 +300,30 @@ class UserAuthentication {
                 .form-row {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
-                    gap: 1rem;
+                    gap: 0.75rem;
                 }
 
                 .form-group {
-                    margin-bottom: 1.5rem;
+                    margin-bottom: 0.75rem;
                 }
 
                 .form-group label {
                     display: block;
-                    margin-bottom: 0.5rem;
+                    margin-bottom: 0.4rem;
                     font-weight: 600;
                     color: #333;
-                    font-size: 0.95rem;
+                    font-size: 0.9rem;
                 }
 
                 .form-group input {
                     width: 100%;
-                    padding: 1rem;
+                    padding: 0.6rem;
                     border: 2px solid #e0e0e0;
-                    border-radius: 8px;
-                    font-size: 1rem;
+                    border-radius: 6px;
+                    font-size: 0.9rem;
                     transition: all 0.3s ease;
                     box-sizing: border-box;
+                    height: 40px;
                 }
 
                 .form-group input:focus {
@@ -331,25 +332,44 @@ class UserAuthentication {
                     box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
                 }
 
-                .password-input {
-                    position: relative;
+                .password-input-wrapper {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .password-input-wrapper input {
+                    flex: 1;
+                    min-width: 0;
                 }
 
                 .toggle-password {
-                    position: absolute;
-                    right: 1rem;
-                    top: 50%;
-                    transform: translateY(-50%);
                     background: none;
-                    border: none;
+                    border: 2px solid #e0e0e0;
                     color: #666;
                     cursor: pointer;
-                    font-size: 1.1rem;
+                    font-size: 0.9rem;
                     padding: 0.5rem;
+                    border-radius: 6px;
+                    transition: all 0.3s ease;
+                    flex-shrink: 0;
+                    width: 40px;
+                    height: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
 
                 .toggle-password:hover {
                     color: #ff6b6b;
+                    border-color: #ff6b6b;
+                    background: rgba(255, 107, 107, 0.05);
+                }
+
+                .toggle-password:focus {
+                    outline: none;
+                    border-color: #ff6b6b;
+                    box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
                 }
 
                 .password-strength {
@@ -382,14 +402,17 @@ class UserAuthentication {
                     display: flex;
                     align-items: flex-start;
                     cursor: pointer;
-                    font-size: 0.95rem;
+                    font-size: 0.9rem;
                     line-height: 1.4;
+                    margin-bottom: 0.75rem;
                 }
 
                 .checkbox-container input[type="checkbox"] {
-                    margin-right: 0.75rem;
-                    width: auto !important;
-                    margin-top: 0.15rem;
+                    margin-right: 0.5rem;
+                    width: 16px !important;
+                    height: 16px !important;
+                    margin-top: 0.1rem;
+                    flex-shrink: 0;
                 }
 
                 .auth-btn {
@@ -1220,9 +1243,15 @@ class UserAuthentication {
 // Initialize authentication system
 window.authSystem = null;
 
-// Initialize when DOM is loaded
+// Initialize authentication system
 document.addEventListener('DOMContentLoaded', function() {
-    window.authSystem = new UserAuthentication();
+    console.log('🔐 Initializing authentication system...');
+    try {
+        window.authSystem = new UserAuthentication();
+        console.log('✅ Authentication system initialized successfully');
+    } catch (error) {
+        console.error('❌ Error initializing authentication system:', error);
+    }
 });
 
 // Export for module use
