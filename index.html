@@ -244,27 +244,7 @@
                             <div class="product-image" style="background-image: url(${product.image})"></div>
                             <div class="product-name">${product.name}</div>
                             ${priceHtml}
-                            <div class="shopping-controls">
-                                <div class="size-selection">
-                                    <div class="control-label">Size:</div>
-                                    <div class="card-size-options-grid">
-                                        ${product.availableSizes.map(size => 
-                                            `<div class="card-size-option" data-size="${size}" data-product-id="${product.id}" onclick="event.stopPropagation(); selectCardSize('${product.id}', '${size}')">${size}</div>`
-                                        ).join('')}
-                                    </div>
-                                </div>
-                                <div class="quantity-selection">
-                                    <div class="control-label">Quantity:</div>
-                                    <div class="quantity-controls">
-                                        <button type="button" onclick="event.stopPropagation(); changeQuantity('${product.id}', -1)" class="qty-btn qty-decrease" aria-label="Decrease quantity">-</button>
-                                        <span id="qty-display-${product.id}" class="qty-display" aria-label="Current quantity">0</span>
-                                        <button type="button" onclick="event.stopPropagation(); changeQuantity('${product.id}', 1)" class="qty-btn qty-increase" aria-label="Increase quantity">+</button>
-                                    </div>
-                                </div>
-                                <button onclick="event.stopPropagation(); addProductToCart('${product.id}')" class="add-to-cart-btn" ${product.stockCount === 0 ? 'disabled' : ''}>
-                                    ${product.stockCount === 0 ? 'Out of Stock' : 'Add to Cart'}
-                                </button>
-                            </div>
+                            ${product.stockCount === 0 ? '<div class="product-stock-info"><span class="out-of-stock">Out of Stock</span></div>' : ''}
                         </div>
                     `;
                 }).join("");
@@ -274,8 +254,12 @@
         <script>
         // Simple quantity change function - working version
         function changeQuantity(productId, change) {
+            
             const qtyDisplay = document.getElementById(`qty-display-${productId}`);
-            if (!qtyDisplay) return;
+            if (!qtyDisplay) {
+                console.error('❌ Element not found:', `qty-display-${productId}`);
+                return;
+            }
             
             let currentQty = parseInt(qtyDisplay.textContent) || 0;
             let newQty = currentQty + change;
@@ -316,46 +300,8 @@
         };
 
         window.addProductToCart = function(productId) {
-            const selectedSizeElement = document.querySelector(`[data-product-id="${productId}"].card-size-option.selected`);
-            const qtyDisplay = document.getElementById(`qty-display-${productId}`);
-            
-            if (!window.productManager) return;
-            
-            const product = window.productManager.getProduct(productId);
-            if (!product) return;
-            
-            // Check if product is in stock
-            if (product.stockCount === 0) {
-                showNotification('Product is out of stock', 'error');
-                return;
-            }
-            
-            if (!selectedSizeElement) {
-                showNotification('Please select a size', 'warning');
-                return;
-            }
-            
-            const selectedSize = selectedSizeElement.getAttribute('data-size');
-            const selectedQuantity = parseInt(qtyDisplay.textContent) || 0;
-            
-            // Check if quantity is greater than 0
-            if (selectedQuantity === 0) {
-                showNotification('Please select a quantity greater than 0', 'warning');
-                return;
-            }
-            
-            // Validate quantity against stock
-            if (selectedQuantity > product.stockCount) {
-                showNotification(`Only ${product.stockCount} items available in stock`, 'error');
-                return;
-            }
-
-            // Call the cart system's addToCart function with proper parameters
-            addToCart(productId, selectedSize, selectedQuantity);
-            
-            // Reset form and quantity back to 0
-            selectedSizeElement.classList.remove('selected');
-            qtyDisplay.textContent = '0';
+            // Since we removed shopping controls from homepage, this function should redirect to modal
+            openProductModal(productId);
         };
         </script>
 
@@ -501,7 +447,7 @@
 
     <!-- Contact Form Modal -->
     <div id="contact-modal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content contact-modal-content">
             <span class="close">&times;</span>
             <h2>Contact Us</h2>
             <form class="contact-form" id="contact-form">
@@ -856,24 +802,20 @@
             if (adminLinkHome) {
                 adminLinkHome.addEventListener('click', function(e) {
                     e.preventDefault();
-                    console.log('Homepage copyright clicked - redirecting to admin');
                     
                     // Try multiple redirect methods
                     try {
                         // Method 1: Direct window location
                         window.location.href = 'admin/';
                     } catch (error) {
-                        console.log('Method 1 failed, trying method 2');
                         // Method 2: Using assign
                         try {
                             window.location.assign('admin/');
                         } catch (error2) {
-                            console.log('Method 2 failed, trying method 3');
                             // Method 3: Using replace
                             try {
                                 window.location.replace('admin/');
                             } catch (error3) {
-                                console.log('All redirect methods failed:', error3);
                                 // Method 4: Open in new tab as fallback
                                 window.open('admin/', '_blank');
                             }

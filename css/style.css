@@ -1364,13 +1364,13 @@ section {
     position: absolute;
     top: 15px;
     right: 15px;
-    background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+    background: #ff6b6b;
     color: white;
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-radius: 15px;
     font-size: 0.8rem;
     font-weight: 600;
-    box-shadow: 0 4px 8px rgba(238, 90, 82, 0.4);
+    text-transform: uppercase;
 }
 
 /* Product Info */
@@ -1411,12 +1411,13 @@ section {
 }
 
 .discount-badge {
-    background: #e74c3c;
+    background: #ff6b6b;
     color: white;
-    padding: 4px 8px;
-    border-radius: 8px;
-    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 15px;
+    font-size: 0.75rem;
     font-weight: 600;
+    margin-left: 0.5rem;
 }
 
 /* Size Selector */
@@ -1602,9 +1603,9 @@ section {
 .discount-badge {
     background: #ff6b6b;
     color: white;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 15px;
+    font-size: 0.75rem;
     font-weight: 600;
     margin-left: 0.5rem;
 }
@@ -2083,11 +2084,11 @@ section {
 .out-of-stock { color: #e74c3c; }
 
 .discount-badge { 
-    background: #ff6b6b; 
-    color: white; 
-    padding: 0.3rem 0.6rem; 
-    font-size: 0.8rem; 
-    border-radius: 15px; 
+    background: #ff6b6b;
+    color: white;
+    padding: 0.3rem 0.6rem;
+    border-radius: 15px;
+    font-size: 0.75rem;
     position: absolute;
     top: 10px;
     right: 10px;
@@ -2320,8 +2321,42 @@ section {
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+    align-items: center;
+    justify-content: center;
 }
 
+/* Contact Modal Specific Container */
+#contact-modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+}
+
+/* Contact Modal Specific Styles */
+.contact-modal-content {
+    background-color: white !important;
+    margin: 5% auto !important;
+    padding: 2rem !important;
+    border-radius: 15px !important;
+    width: 90% !important;
+    max-width: 500px !important;
+    max-height: 90vh !important;
+    position: relative !important;
+    overflow: visible !important;
+    border: none !important;
+    height: auto !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+    transform: none !important;
+}
+
+/* General Modal Content (for other modals) */
 .modal-content {
     background-color: white;
     margin: 15% auto;
@@ -2338,10 +2373,28 @@ section {
     font-size: 28px;
     font-weight: bold;
     cursor: pointer;
+    position: relative;
+    z-index: 1001;
 }
 
 .close:hover {
     color: #000;
+}
+
+/* Contact Modal Close Button */
+.contact-modal-content .close {
+    position: absolute !important;
+    top: 15px !important;
+    right: 20px !important;
+    float: none !important;
+    color: #999 !important;
+    font-size: 30px !important;
+    line-height: 1 !important;
+    z-index: 1002 !important;
+}
+
+.contact-modal-content .close:hover {
+    color: #333 !important;
 }
 
 /* Form Styles */
@@ -2369,6 +2422,37 @@ section {
 .form-group textarea:focus {
     outline: none;
     border-color: #ff6b6b;
+}
+
+/* Contact Modal Responsive Styles */
+@media (max-width: 768px) {
+    .contact-modal-content {
+        margin: 2% auto !important;
+        width: 95% !important;
+        padding: 1.5rem !important;
+        max-height: 95vh !important;
+    }
+    
+    #contact-modal {
+        padding: 10px;
+    }
+    
+    .contact-form .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .contact-form input,
+    .contact-form textarea {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+}
+
+@media (max-width: 480px) {
+    .contact-modal-content {
+        margin: 1% auto !important;
+        width: 98% !important;
+        padding: 1rem !important;
+    }
 }
 
 /* Animations */
@@ -2710,9 +2794,10 @@ section {
 .discount-badge { 
     background: #ff6b6b; 
     color: white; 
-    padding: 0.2rem 0.4rem; 
-    font-size: 0.8rem; 
-    border-radius: 3px; 
+    padding: 0.3rem 0.6rem; 
+    border-radius: 15px; 
+    font-size: 0.75rem; 
+    font-weight: 600; 
     margin-left: 0.5rem; 
 }
 
@@ -2731,6 +2816,23 @@ section {
 
 .out-of-stock { 
     color: #e74c3c; 
+}
+
+/* Product stock info for homepage cards */
+.product-stock-info {
+    text-align: center;
+    margin-top: 0.8rem;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.product-stock-info .in-stock {
+    color: #27ae60;
+}
+
+.product-stock-info .out-of-stock {
+    color: #e74c3c;
 }
 
 .add-to-cart-btn:disabled { 

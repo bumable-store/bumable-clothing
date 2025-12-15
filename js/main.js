@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Additional fallback for product loading
     setTimeout(function() {
         if (!window.productManager) {
-            console.log('Fallback: Trying to initialize products again');
             initProductSystem();
         }
     }, 2000);
@@ -29,7 +28,6 @@ function initAdminSync() {
     // Listen for localStorage changes from admin panel
     window.addEventListener('storage', function(e) {
         if (e.key === 'bumable_products') {
-            console.log('Products updated by admin, refreshing display...');
             
             // Reload product manager with new data
             if (window.ProductManager) {
@@ -40,8 +38,6 @@ function initAdminSync() {
                 if (typeof updateCartDisplay === 'function') {
                     updateCartDisplay();
                 }
-                
-                console.log('Product display synced with admin changes');
             }
         }
     });
@@ -77,109 +73,34 @@ function initNavigation() {
     }
 }
 
-// Manual function to test product loading (for debugging)
-function testProductLoading() {
-    console.log('=== TESTING PRODUCT LOADING ===');
-    console.log('ProductManager available:', !!window.ProductManager);
-    console.log('productManager instance:', !!window.productManager);
-    
-    if (window.ProductManager) {
-        window.productManager = new ProductManager();
-        const products = window.productManager.getAllProducts();
-        console.log('Products found:', products.length);
-        console.log('First product:', products[0]);
-        
-        const shopGrid = document.querySelector('.products-grid');
-        console.log('Shop grid found:', !!shopGrid);
-        
-        if (shopGrid && products.length > 0) {
-            updateHomePageProducts(products);
-            console.log('Updated homepage products');
-        }
-    }
-}
-
 // Product system initialization
 function initProductSystem() {
-    console.log('initProductSystem called');
     
     // Check if we're not in admin
     if (window.location.pathname.includes('admin')) {
-        console.log('In admin page, skipping product init');
         return;
     }
     
     // Check if ProductManager exists (should be loaded from products.js)
     if (window.ProductManager) {
-        console.log('ProductManager found, creating instance');
         window.productManager = new ProductManager();
-        console.log('ProductManager instance created');
         updateProductDisplay();
     } else {
-        console.log('ProductManager not found, retrying in 1 second');
         // Try again after a short delay
         setTimeout(initProductSystem, 1000);
     }
 }
 
-// Force product loading for debugging
-function forceLoadProducts() {
-    console.log('=== FORCE LOADING PRODUCTS ===');
-    
-    if (!window.ProductManager) {
-        console.error('ProductManager class not available');
-        return;
-    }
-    
-    // Create ProductManager instance
-    const productManager = new ProductManager();
-    const products = productManager.getAllProducts();
-    console.log('Force loaded products:', products.length);
-    
-    // Find the shop grid
-    const shopGrid = document.querySelector('.products-grid');
-    console.log('Shop grid element found:', !!shopGrid);
-    
-    if (!shopGrid) {
-        console.error('products-grid element not found');
-        return;
-    }
-    
-    // Clear and populate
-    shopGrid.innerHTML = '';
-    
-    if (products.length === 0) {
-        shopGrid.innerHTML = '<div class="no-products" style="text-align: center; padding: 2rem; color: #666;">No products available</div>';
-        return;
-    }
-    
-    // Create product cards
-    products.forEach((product, index) => {
-        console.log(`Creating card for product ${index + 1}:`, product.name);
-        try {
-            const productCard = createShopProductCard(product);
-            shopGrid.appendChild(productCard);
-        } catch (error) {
-            console.error(`Error creating card for product ${product.name}:`, error);
-        }
-    });
-    
-    console.log('Products loaded successfully!');
-}
-
 // Update product display on website
 function updateProductDisplay() {
     if (!window.productManager) {
-        console.log('No productManager found');
         return;
     }
     
     const products = window.productManager.getAllProducts();
-    console.log('Products loaded:', products.length);
     
     // Update home page if we're on it
     if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '' || window.location.pathname.endsWith('/')) {
-        console.log('Updating homepage products');
         updateHomePageProducts(products);
     }
     

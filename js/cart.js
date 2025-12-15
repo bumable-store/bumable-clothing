@@ -300,14 +300,11 @@ class ShoppingCart {
 
     // Proceed to checkout
     proceedToCheckout() {
-        console.log('Checkout initiated...'); // Debug log
         
         if (this.items.length === 0) {
             this.showNotification('Your cart is empty', 'warning');
             return;
         }
-
-        console.log('Cart items:', this.items); // Debug log
 
         // Save cart state for checkout
         localStorage.setItem('checkoutCart', JSON.stringify({
@@ -317,8 +314,6 @@ class ShoppingCart {
             shipping: this.shipping,
             total: this.total
         }));
-
-        console.log('Checkout data saved to localStorage'); // Debug log
 
         // Determine correct path based on current location
         const currentPath = window.location.pathname;
@@ -334,8 +329,6 @@ class ShoppingCart {
             // In root directory  
             checkoutPath = 'checkout/';
         }
-
-        console.log('Redirecting to:', checkoutPath); // Debug log
 
         // Redirect to checkout
         window.location.href = checkoutPath;

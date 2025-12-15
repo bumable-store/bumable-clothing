@@ -1254,8 +1254,6 @@
         function checkAdminAuthentication() {
             const adminSession = localStorage.getItem('bumableAdminSession');
             
-            console.log('Checking admin session:', adminSession); // Debug log
-            
             if (!adminSession) {
                 redirectToLogin('No session found. Please login.');
                 return false;
@@ -1264,9 +1262,6 @@
             try {
                 const session = JSON.parse(adminSession);
                 const now = new Date().getTime();
-                
-                console.log('Session data:', session); // Debug log
-                console.log('Current time:', now, 'Session expires:', session.expires); // Debug log
                 
                 if (session.expires <= now) {
                     localStorage.removeItem('bumableAdminSession');
@@ -1848,7 +1843,6 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
 
         // Show specific section
         function showSection(sectionName) {
-            console.log('Switching to section:', sectionName);
             
             // Update nav active state
             document.querySelectorAll('.admin-nav a').forEach(link => {
@@ -1870,7 +1864,6 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                 const element = document.getElementById(section);
                 if (element) {
                     element.style.display = 'none';
-                    console.log('Hiding section:', section);
                 }
             });
             
@@ -1878,20 +1871,15 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             const targetSection = document.getElementById(sectionName);
             if (targetSection) {
                 targetSection.style.display = 'block';
-                console.log('Showing section:', sectionName);
                 
                 // Load data for specific sections
                 if (sectionName === 'products') {
-                    console.log('Loading products...');
                     loadAdminProducts();
                 } else if (sectionName === 'orders') {
-                    console.log('Loading orders...');
                     loadAdminOrders();
                 } else if (sectionName === 'customers') {
-                    console.log('Loading customers...');
                     loadCustomersData();
                 } else if (sectionName === 'dashboard') {
-                    console.log('Loading dashboard...');
                     loadAdminData();
                 }
             } else {
@@ -1909,17 +1897,13 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
         
         // Initialize product synchronization
         function initializeProductSync() {
-            console.log('Initializing product sync...');
             
             if (window.productManager) {
-                console.log('Product Manager loaded successfully');
-                console.log('Number of products:', window.productManager.getAllProducts().length);
                 updateProductStats();
                 
                 // Listen for storage changes to sync with main site
                 window.addEventListener('storage', function(e) {
                     if (e.key === 'bumable_products') {
-                        console.log('Products updated from main site, syncing admin...');
                         if (window.productManager) {
                             // Reload products from storage
                             window.productManager = new ProductManager();
@@ -1929,7 +1913,6 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                     }
                 });
             } else {
-                console.error('Product Manager not loaded. Retrying...');
                 setTimeout(initializeProductSync, 500);
             }
         }
@@ -1964,15 +1947,12 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
 
         // Load admin products
         function loadAdminProducts() {
-            console.log('Loading admin products...');
             
             if (!window.productManager) {
-                console.log('Product manager not ready, retrying...');
                 setTimeout(loadAdminProducts, 500);
                 return;
             }
             
-            console.log('Product manager is ready');
             updateProductStats();
             displayAdminProducts();
         }
@@ -2257,12 +2237,16 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                                     </div>
                                     
                                     <!-- Upload placeholder -->
-                                    <div id="edit-upload-placeholder" style="text-align: center;">
+                                    <div id="edit-upload-placeholder" style="text-align: center; border: 2px dashed #007bff; border-radius: 8px; padding: 20px; background: rgba(0,123,255,0.05); cursor: pointer;" 
+                                         onclick="document.getElementById('edit-product-images').click()"
+                                         ondrop="handleImageDrop(event)" 
+                                         ondragover="handleDragOver(event)"
+                                         ondragleave="handleDragLeave(event)">
                                         <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #666; margin-bottom: 10px;"></i>
                                         <h4 style="margin: 10px 0; color: #333;">Upload Product Images</h4>
-                                        <p style="margin: 0; color: #666;">Select multiple images to add to this product</p>
+                                        <p style="margin: 0; color: #666;">Click to select, drag & drop, or <strong>Ctrl+V to paste multiple images</strong></p>
                                         <p style="margin: 5px 0 15px 0; font-size: 0.9rem; color: #999;">Supports JPG, PNG, GIF (Max 5MB each, up to 10 images total)</p>
-                                        <button type="button" onclick="document.getElementById('edit-product-images').click()" style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+                                        <button type="button" onclick="event.stopPropagation(); document.getElementById('edit-product-images').click()" style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
                                             <i class="fas fa-folder-open"></i> Choose Images
                                         </button>
                                     </div>
@@ -2284,6 +2268,10 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             `;
             
             document.body.appendChild(modal);
+            
+            // Setup paste listener for this modal
+            setupPasteListener();
+            console.log('📋 Paste listener activated for edit product modal');
         }
 
         // Global storage for edit product images
@@ -2291,11 +2279,16 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
         window.editProductRemovedImages = [];
 
         // Enable image editing
+        // Enable image editing
         function enableImageEdit() {
             document.getElementById('current-images-display').style.display = 'none';
             document.getElementById('new-image-section').style.display = 'block';
             // Reset new images array
             window.editProductNewImages = [];
+            
+            // Remove any existing paste counter
+            const counter = document.querySelector('.paste-counter');
+            if (counter) counter.remove();
         }
 
         // Cancel image editing
@@ -2309,82 +2302,63 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
         }
 
         // Preview multiple product images
+        // Preview multiple product images - No immediate preview, show counter instead
         function previewEditProductImages(input) {
             if (input.files && input.files.length > 0) {
                 const files = Array.from(input.files);
                 
-                // Limit total images (existing + new) to 10 maximum
-                const existingCount = window.editProductNewImages.length;
-                if (existingCount + files.length > 10) {
-                    alert(`Maximum 10 images allowed. You can add ${10 - existingCount} more images.`);
-                    input.value = '';
-                    return;
-                }
+                console.log(`📁 File input: ${files.length} file(s) selected`);
                 
-                let validFilesCount = 0;
+                // Use the same logic as paste - no immediate preview
+                handleImagePaste(files);
                 
-                files.forEach((file, index) => {
-                    // Validate file size (5MB max)
-                    if (file.size > 5 * 1024 * 1024) {
-                        alert(`File "${file.name}" is too large. Please choose images smaller than 5MB.`);
-                        return;
-                    }
-                    
-                    // Validate file type
-                    if (!file.type.match(/^image\/(jpeg|jpg|png|gif)$/)) {
-                        alert(`File "${file.name}" is not a valid image. Please select JPG, PNG, or GIF files.`);
-                        return;
-                    }
-                    
-                    validFilesCount++;
-                    
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        // Add to our global array
-                        window.editProductNewImages.push({
-                            dataUrl: e.target.result,
-                            filename: file.name,
-                            id: Date.now() + index // Unique ID
-                        });
-                        
-                        updateNewImagesPreview();
-                    };
-                    reader.onerror = function() {
-                        alert(`Error reading file: ${file.name}`);
-                    };
-                    reader.readAsDataURL(file);
-                });
-                
-                // Clear the file input
+                // Clear the input so the same files can be selected again if needed
                 input.value = '';
             }
         }
 
-        // Update the preview display
+        // Update the preview display - Only call this when saving
         function updateNewImagesPreview() {
             const newImagesGrid = document.getElementById('new-images-grid');
+            
+            if (!newImagesGrid) {
+                console.log('❌ new-images-grid not found');
+                return;
+            }
             
             if (window.editProductNewImages.length === 0) {
                 document.getElementById('edit-images-preview').style.display = 'none';
                 document.getElementById('edit-upload-placeholder').style.display = 'block';
+                
+                // Remove paste counter if exists
+                const counter = document.querySelector('.paste-counter');
+                if (counter) counter.remove();
                 return;
             }
             
-            newImagesGrid.innerHTML = '';
-            
-            window.editProductNewImages.forEach((imageData, index) => {
-                const imageDiv = document.createElement('div');
-                imageDiv.style.cssText = 'position: relative; display: inline-block; margin: 5px;';
-                imageDiv.innerHTML = `
-                    <img src="${imageData.dataUrl}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <button type="button" onclick="removeNewImageByIndex(${index})" style="position: absolute; top: -5px; right: -5px; width: 25px; height: 25px; background: #dc3545; color: white; border: none; border-radius: 50%; cursor: pointer; font-size: 12px;">×</button>
-                    <div style="text-align: center; font-size: 10px; margin-top: 5px; color: #666; max-width: 100px; word-wrap: break-word;">${imageData.filename}</div>
-                `;
-                newImagesGrid.appendChild(imageDiv);
-            });
-            
+            // Show preview section
             document.getElementById('edit-images-preview').style.display = 'block';
             document.getElementById('edit-upload-placeholder').style.display = 'none';
+            
+            // Clear existing content
+            newImagesGrid.innerHTML = '';
+            
+            // Add each new image to the grid
+            window.editProductNewImages.forEach((image, index) => {
+                const imageItem = document.createElement('div');
+                imageItem.className = 'image-item';
+                imageItem.style.cssText = 'position: relative; display: inline-block; margin-right: 10px; margin-bottom: 10px;';
+                
+                imageItem.innerHTML = `
+                    <img src="${image.dataUrl}" alt="${image.name}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <button type="button" onclick="removeNewImageByIndex(${index})" style="position: absolute; top: -5px; right: -5px; width: 25px; height: 25px; background: #dc3545; color: white; border: none; border-radius: 50%; cursor: pointer; font-size: 12px;">×</button>
+                    <div style="position: absolute; bottom: 5px; left: 5px; right: 5px; background: rgba(0,0,0,0.7); color: white; padding: 2px 4px; border-radius: 4px; font-size: 10px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${image.name}</div>
+                `;
+                
+                newImagesGrid.appendChild(imageItem);
+            });
+            
+            console.log(`📸 Updated preview with ${window.editProductNewImages.length} images`);
         }
 
         // Remove a specific new image by index
@@ -2402,6 +2376,10 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             document.getElementById('edit-images-preview').style.display = 'none';
             document.getElementById('edit-upload-placeholder').style.display = 'block';
             document.getElementById('new-images-grid').innerHTML = '';
+            
+            // Remove paste counter if exists
+            const counter = document.querySelector('.paste-counter');
+            if (counter) counter.remove();
         }
 
         // Remove existing image
@@ -2419,6 +2397,227 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
         function addMoreImages() {
             document.getElementById('edit-product-images').click();
         }
+
+        // Handle image paste functionality - Allow multiple pastes, show after save
+        function handleImagePaste(files) {
+            if (!files || files.length === 0) {
+                console.log('❌ No files to process');
+                return;
+            }
+            
+            console.log(`🎯 Processing ${files.length} pasted image(s)`);
+            
+            // Check if edit images array exists
+            if (!window.editProductNewImages) {
+                window.editProductNewImages = [];
+            }
+            
+            const existingCount = window.editProductNewImages.length;
+            const maxAllowed = 10;
+            const spacesAvailable = maxAllowed - existingCount;
+            
+            if (spacesAvailable <= 0) {
+                alert('Maximum 10 images allowed. Please remove some images first before pasting more.');
+                return;
+            }
+            
+            if (files.length > spacesAvailable) {
+                alert(`Maximum 10 images allowed. You can add ${spacesAvailable} more images. Only the first ${spacesAvailable} pasted images will be added.`);
+            }
+            
+            const filesToProcess = Array.from(files).slice(0, spacesAvailable);
+            let validFilesCount = 0;
+            let processedCount = 0;
+            const errors = [];
+            
+            console.log(`📝 Will process ${filesToProcess.length} files`);
+            
+            filesToProcess.forEach((file, index) => {
+                console.log(`🔍 Validating file ${index + 1}:`, file.name, file.type, `${(file.size / 1024 / 1024).toFixed(2)}MB`);
+                
+                // Validate file size (5MB max)
+                if (file.size > 5 * 1024 * 1024) {
+                    const errorMsg = `"${file.name || 'Image ' + (index + 1)}" is too large (${(file.size / 1024 / 1024).toFixed(2)}MB > 5MB)`;
+                    errors.push(errorMsg);
+                    console.log('❌', errorMsg);
+                    
+                    processedCount++;
+                    if (processedCount === filesToProcess.length) {
+                        showPasteResults(validFilesCount, errors);
+                    }
+                    return;
+                }
+                
+                // Validate file type
+                if (!file.type.match(/^image\/(jpeg|jpg|png|gif)$/)) {
+                    const errorMsg = `"${file.name || 'Image ' + (index + 1)}" is not a valid image format (${file.type})`;
+                    errors.push(errorMsg);
+                    console.log('❌', errorMsg);
+                    
+                    processedCount++;
+                    if (processedCount === filesToProcess.length) {
+                        showPasteResults(validFilesCount, errors);
+                    }
+                    return;
+                }
+                
+                validFilesCount++;
+                console.log(`✅ File ${index + 1} is valid, processing...`);
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Generate unique name to allow same image multiple times
+                    const timestamp = Date.now();
+                    const randomSuffix = Math.random().toString(36).substring(2, 8);
+                    const fileName = file.name || `pasted-image.${file.type.split('/')[1]}`;
+                    const uniqueName = fileName.replace(/(\.[^.]+)$/, `-${timestamp}-${randomSuffix}$1`);
+                    
+                    // Add to our global array
+                    window.editProductNewImages.push({
+                        dataUrl: e.target.result,
+                        name: uniqueName,
+                        size: file.size,
+                        originalName: file.name || 'pasted-image'
+                    });
+                    
+                    processedCount++;
+                    console.log(`📸 Processed file ${processedCount}/${filesToProcess.length}: ${uniqueName}`);
+                    
+                    // Don't update preview immediately - wait for save
+                    if (processedCount === filesToProcess.length) {
+                        console.log('🎉 All files processed, ready to save');
+                        showPasteResults(validFilesCount, errors);
+                        updatePasteCounter(); // Show count instead of preview
+                    }
+                };
+                
+                reader.onerror = function() {
+                    const errorMsg = `Failed to read "${file.name || 'Image ' + (index + 1)}"`;
+                    errors.push(errorMsg);
+                    console.log('❌', errorMsg);
+                    
+                    processedCount++;
+                    if (processedCount === filesToProcess.length) {
+                        showPasteResults(validFilesCount, errors);
+                        updatePasteCounter();
+                    }
+                };
+                
+                reader.readAsDataURL(file);
+            });
+            
+            if (validFilesCount === 0 && errors.length > 0) {
+                showPasteResults(0, errors);
+            }
+        }
+
+        // Show count of pasted images instead of preview
+        function updatePasteCounter() {
+            const placeholder = document.getElementById('edit-upload-placeholder');
+            const existingCounter = placeholder.querySelector('.paste-counter');
+            
+            if (window.editProductNewImages && window.editProductNewImages.length > 0) {
+                const count = window.editProductNewImages.length;
+                
+                if (existingCounter) {
+                    existingCounter.textContent = `📋 ${count} image(s) ready to upload`;
+                } else {
+                    const counter = document.createElement('div');
+                    counter.className = 'paste-counter';
+                    counter.style.cssText = 'margin-top: 10px; padding: 8px 12px; background: #e3f2fd; color: #1565c0; border-radius: 4px; font-weight: 500;';
+                    counter.textContent = `📋 ${count} image(s) ready to upload`;
+                    placeholder.appendChild(counter);
+                }
+            } else if (existingCounter) {
+                existingCounter.remove();
+            }
+        }
+
+        // Show results of paste operation
+        function showPasteResults(successCount, errors) {
+            console.log(`📊 Paste results: ${successCount} successful, ${errors.length} errors`);
+            
+            // Show success message (brief)
+            if (successCount > 0) {
+                const successMsg = successCount === 1 ? 
+                    `✅ 1 image ready to upload` : 
+                    `✅ ${successCount} images ready to upload`;
+                
+                console.log(successMsg);
+                
+                // Brief notification - don't show full alert unless there are errors
+                if (errors.length === 0) {
+                    // Just log success, no popup
+                    return;
+                }
+            }
+            
+            // Show errors if any
+            if (errors.length > 0) {
+                const errorMsg = errors.length === 1 ? 
+                    `❌ 1 image failed: ${errors[0]}` : 
+                    `❌ ${errors.length} images failed:\n${errors.join('\n')}`;
+                alert(errorMsg);
+            }
+        }
+
+        // Handle drag and drop events
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.style.borderColor = '#007bff';
+            event.currentTarget.style.backgroundColor = 'rgba(0,123,255,0.1)';
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.style.borderColor = '#007bff';
+            event.currentTarget.style.backgroundColor = 'rgba(0,123,255,0.05)';
+        }
+
+        function handleImageDrop(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Reset visual state
+            event.currentTarget.style.borderColor = '#007bff';
+            event.currentTarget.style.backgroundColor = 'rgba(0,123,255,0.05)';
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                console.log(`🗂️ Dropped ${files.length} file(s)`);
+                
+                // Filter only image files
+                const imageFiles = Array.from(files).filter(file => 
+                    file.type.match(/^image\/(jpeg|jpg|png|gif)$/)
+                );
+                
+                if (imageFiles.length === 0) {
+                    alert('No valid image files found. Please drop JPG, PNG, or GIF files.');
+                    return;
+                }
+                
+                if (imageFiles.length < files.length) {
+                    const nonImages = files.length - imageFiles.length;
+                    alert(`${nonImages} non-image file(s) ignored. Processing ${imageFiles.length} image file(s).`);
+                }
+                
+                handleImagePaste(imageFiles);
+            }
+        }
+
+        // Initialize paste listener when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            setupPasteListener();
+            console.log('📋 Initial paste listener setup completed');
+        });
+        
+        // Also setup when window loads (backup)
+        window.addEventListener('load', function() {
+            setupPasteListener();
+            console.log('📋 Backup paste listener setup completed');
+        });
 
         // Save edited product
         function saveEditedProduct(event, productId) {
@@ -2589,7 +2788,11 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                             <!-- Image Upload Section -->
                             <div class="form-group" style="margin-top: 15px;">
                                 <label>Product Image</label>
-                                <div class="image-upload-container" style="border: 2px dashed #ddd; border-radius: 8px; padding: 20px; text-align: center; margin-top: 10px;">
+                                <div class="image-upload-container" style="border: 2px dashed #007bff; border-radius: 8px; padding: 20px; text-align: center; margin-top: 10px; background: rgba(0,123,255,0.05); cursor: pointer;" 
+                                     onclick="document.getElementById('product-image').click()"
+                                     ondrop="handleNewProductImageDrop(event)" 
+                                     ondragover="handleDragOver(event)"
+                                     ondragleave="handleDragLeave(event)">
                                     <input type="file" id="product-image" accept="image/*" style="display: none;" onchange="previewProductImage(this)">
                                     <div id="image-preview" style="margin-bottom: 15px; display: none;">
                                         <img id="preview-img" style="max-width: 200px; max-height: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -2597,9 +2800,9 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                                     </div>
                                     <div id="upload-placeholder">
                                         <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #666; margin-bottom: 10px;"></i>
-                                        <p style="margin: 0; color: #666;">Click to upload product image</p>
+                                        <p style="margin: 0; color: #666;">Click to select, drag & drop, or <strong>Ctrl+V to paste</strong> image</p>
                                         <p style="margin: 5px 0 0 0; font-size: 0.9rem; color: #999;">Supports JPG, PNG, GIF (Max 5MB)</p>
-                                        <button type="button" onclick="document.getElementById('product-image').click()" style="margin-top: 10px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Choose File</button>
+                                        <button type="button" onclick="event.stopPropagation(); document.getElementById('product-image').click()" style="margin-top: 10px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Choose File</button>
                                     </div>
                                 </div>
                             </div>
@@ -2614,6 +2817,10 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             `;
             
             document.body.appendChild(modal);
+            
+            // Setup paste listener for this modal
+            setupPasteListener();
+            console.log('📋 Paste listener activated for add product modal');
         }
 
         // Preview product image
@@ -2650,6 +2857,172 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             document.getElementById('product-image').value = '';
             document.getElementById('image-preview').style.display = 'none';
             document.getElementById('upload-placeholder').style.display = 'block';
+        }
+
+        // Handle drag and drop for new product image
+        function handleNewProductImageDrop(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Reset visual state
+            event.currentTarget.style.borderColor = '#007bff';
+            event.currentTarget.style.backgroundColor = 'rgba(0,123,255,0.05)';
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0]; // Only take first file for single image upload
+                
+                // Validate file size (5MB max)
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('File size too large. Please choose an image smaller than 5MB.');
+                    return;
+                }
+                
+                // Validate file type
+                if (!file.type.match(/^image\/(jpeg|jpg|png|gif)$/)) {
+                    alert('Please select a valid image file (JPG, PNG, or GIF).');
+                    return;
+                }
+                
+                // Create a FileList-like object and assign to input
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                document.getElementById('product-image').files = dt.files;
+                
+                // Preview the image
+                previewProductImage(document.getElementById('product-image'));
+            }
+        }
+
+        // Enhanced paste listener that handles multiple consecutive pastes
+        function setupPasteListener() {
+            // Remove any existing paste listeners to avoid duplicates
+            document.removeEventListener('paste', handlePasteEvent);
+            
+            // Add the paste event listener
+            document.addEventListener('paste', handlePasteEvent);
+        }
+
+        // Separate paste event handler function
+        function handlePasteEvent(event) {
+            console.log('📋 Paste event triggered');
+            
+            // Check if we're in the edit modal context (supports multiple images)
+            if (document.getElementById('edit-upload-placeholder') && 
+                document.getElementById('edit-upload-placeholder').offsetParent !== null) {
+                
+                console.log('🎯 In edit modal context');
+                
+                const items = event.clipboardData.items;
+                const imageFiles = [];
+                
+                // Check for regular image items
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item.type.indexOf('image') !== -1) {
+                        const file = item.getAsFile();
+                        if (file) {
+                            imageFiles.push(file);
+                            console.log('📸 Found image item:', file.name, file.type);
+                        }
+                    }
+                }
+                
+                // Also check for files (for multiple image paste from file explorer)
+                if (event.clipboardData.files && event.clipboardData.files.length > 0) {
+                    const files = Array.from(event.clipboardData.files);
+                    console.log('📁 Found clipboard files:', files.length);
+                    files.forEach(file => {
+                        if (file.type.indexOf('image') !== -1) {
+                            // Avoid duplicates
+                            const alreadyAdded = imageFiles.some(existing => 
+                                existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified
+                            );
+                            if (!alreadyAdded) {
+                                imageFiles.push(file);
+                                console.log('📸 Added file:', file.name, file.type);
+                            }
+                        }
+                    });
+                }
+                
+                if (imageFiles.length > 0) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    console.log(`📋 Processing ${imageFiles.length} image(s) for edit modal`);
+                    handleImagePaste(imageFiles);
+                    return; // Exit early to prevent other handlers
+                }
+            }
+            
+            // Check if we're in the new product form context (single image)
+            if (document.getElementById('upload-placeholder') && 
+                document.getElementById('upload-placeholder').offsetParent !== null &&
+                document.getElementById('product-image')) {
+                
+                console.log('🆕 In new product form context');
+                
+                const items = event.clipboardData.items;
+                const imageFiles = [];
+                
+                // Check for regular image items
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item.type.indexOf('image') !== -1) {
+                        const file = item.getAsFile();
+                        if (file) {
+                            imageFiles.push(file);
+                        }
+                    }
+                }
+                
+                // Also check clipboard files
+                if (event.clipboardData.files && event.clipboardData.files.length > 0) {
+                    const files = Array.from(event.clipboardData.files);
+                    files.forEach(file => {
+                        if (file.type.indexOf('image') !== -1) {
+                            const alreadyAdded = imageFiles.some(existing => 
+                                existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified
+                            );
+                            if (!alreadyAdded) {
+                                imageFiles.push(file);
+                            }
+                        }
+                    });
+                }
+                
+                if (imageFiles.length > 0) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    // For new product form, take the first image only but inform user
+                    const imageFile = imageFiles[0];
+                    if (imageFiles.length > 1) {
+                        alert(`You pasted ${imageFiles.length} images. Only the first image "${imageFile.name}" will be used for the new product. Use the Edit Product feature to add multiple images.`);
+                    }
+                    
+                    // Validate file size (5MB max)
+                    if (imageFile.size > 5 * 1024 * 1024) {
+                        alert('Pasted image is too large. Please use images smaller than 5MB.');
+                        return;
+                    }
+                    
+                    // Validate file type
+                    if (!imageFile.type.match(/^image\/(jpeg|jpg|png|gif)$/)) {
+                        alert('Pasted file is not a valid image. Please use JPG, PNG, or GIF files.');
+                        return;
+                    }
+                    
+                    // Create a FileList-like object and assign to input
+                    const dt = new DataTransfer();
+                    dt.items.add(imageFile);
+                    document.getElementById('product-image').files = dt.files;
+                    
+                    // Preview the image
+                    previewProductImage(document.getElementById('product-image'));
+                    return; // Exit early to prevent other handlers
+                }
+            }
         }
 
         // Close product modal
