@@ -46,7 +46,28 @@ CREATE TABLE IF NOT EXISTS order_items (
     product_image_url TEXT
 );
 
--- 4. Contacts Table (Customer Inquiries)
+-- 4. Products Table (Product Management)
+CREATE TABLE IF NOT EXISTS products (
+    id SERIAL PRIMARY KEY,
+    product_id VARCHAR(100) UNIQUE NOT NULL,
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    category VARCHAR(100) NOT NULL,
+    regular_price DECIMAL(10,2) NOT NULL,
+    sale_price DECIMAL(10,2),
+    on_sale BOOLEAN DEFAULT false,
+    image_url TEXT NOT NULL,
+    gallery_images TEXT[], -- Array of additional images
+    in_stock BOOLEAN DEFAULT true,
+    stock_count INTEGER DEFAULT 0,
+    available_sizes TEXT[] DEFAULT '{}',
+    featured BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'active'
+);
+
+-- 5. Contacts Table (Customer Inquiries)
 CREATE TABLE IF NOT EXISTS contacts (
     id SERIAL PRIMARY KEY,
     name VARCHAR(200) NOT NULL,

@@ -397,6 +397,188 @@ class SupabaseDB {
     }
 
     // ==========================================
+    // PRODUCT MANAGEMENT
+    // ==========================================
+
+    /**
+     * Get all products
+     */
+    async getAllProducts() {
+        try {
+            const { data, error } = await this.client
+                .from('products')
+                .select('*')
+                .eq('status', 'active')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            return {
+                success: true,
+                products: data || []
+            };
+        } catch (error) {
+            console.error('Error fetching products:', error);
+            return {
+                success: false,
+                error: error.message,
+                products: []
+            };
+        }
+    }
+
+    /**
+     * Add new product
+     */
+    async addProduct(productData) {
+        try {
+            const { data, error } = await this.client
+                .from('products')
+                .insert([{
+                    product_id: productData.id,
+                    name: productData.name,
+                    description: productData.description,
+                    category: productData.category,
+                    regular_price: productData.regularPrice,
+                    sale_price: productData.salePrice || null,
+                    on_sale: productData.onSale || false,
+                    image_url: productData.image,
+                    gallery_images: productData.gallery || [],
+                    in_stock: productData.inStock || true,
+                    stock_count: productData.stockCount || 0,
+                    available_sizes: productData.availableSizes || [],
+                    featured: productData.featured || false
+                }])
+                .select();
+
+            if (error) throw error;
+
+            return {
+                success: true,
+                product: data[0],
+                message: 'Product added successfully'
+            };
+        } catch (error) {
+            console.error('Error adding product:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Update product
+     */
+    async updateProduct(productId, productData) {
+        try {
+            const updateData = {
+                name: productData.name,
+                description: productData.description,
+                category: productData.category,
+                regular_price: productData.regularPrice,
+                sale_price: productData.salePrice || null,
+                on_sale: productData.onSale || false,
+                image_url: productData.image,
+                gallery_images: productData.gallery || [],
+                in_stock: productData.inStock || true,
+                stock_count: productData.stockCount || 0,
+                available_sizes: productData.availableSizes || [],
+                featured: productData.featured || false,
+                updated_at: new Date().toISOString()
+            };
+
+            const { data, error } = await this.client
+                .from('products')
+                .update(updateData)
+                .eq('product_id', productId)
+                .select();
+
+            if (error) throw error;
+
+            return {
+                success: true,
+                product: data[0],
+                message: 'Product updated successfully'
+            };
+        } catch (error) {
+            console.error('Error updating product:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Delete product
+     */
+    async deleteProduct(productId) {
+        try {
+            const { data, error } = await this.client
+                .from('products')
+                .update({ status: 'deleted' })
+                .eq('product_id', productId)
+                .select();
+
+            if (error) throw error;
+
+            return {
+                success: true,
+                message: 'Product deleted successfully'
+            };
+        } catch (error) {
+            console.error('Error deleting product:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Migrate existing products to Supabase
+     */
+    async migrateProductsToSupabase() {
+        try {
+            // Get existing products from local storage or products.js
+            const existingProducts = window.ProductManager ? 
+                new window.ProductManager().products : 
+                [];
+
+            if (existingProducts.length === 0) {
+                return {
+                    success: false,
+                    message: 'No products found to migrate'
+                };
+            }
+
+            const migratedProducts = [];
+            
+            for (const product of existingProducts) {
+                const result = await this.addProduct(product);
+                if (result.success) {
+                    migratedProducts.push(result.product);
+                } else {
+                    console.warn(`Failed to migrate product ${product.id}:`, result.error);
+                }
+            }
+
+            return {
+                success: true,
+                message: `Successfully migrated ${migratedProducts.length} products`,
+                products: migratedProducts
+            };
+        } catch (error) {
+            console.error('Error migrating products:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    // ==========================================
     // ADMIN DASHBOARD METHODS
     // ==========================================
 
