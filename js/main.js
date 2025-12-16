@@ -41,41 +41,15 @@ document.addEventListener('DOMContentLoaded', function() {
     initAdminSync();
 });
 
-// Listen for admin changes and sync with main site
+// Listen for admin changes and sync with main site (Updated for Supabase)
 function initAdminSync() {
-    // Listen for localStorage changes from admin panel
-    window.addEventListener('storage', function(e) {
-        if (e.key === 'bumable_products') {
-            
-            // Reload product manager with new data
-            if (window.ProductManager) {
-                window.productManager = new ProductManager();
-                updateProductDisplay();
-                
-                // Update cart if items have changed
-                if (typeof updateCartDisplay === 'function') {
-                    updateCartDisplay();
-                }
-            }
-        }
-    });
+    console.log('Initializing admin sync with Supabase real-time updates...');
     
-    // Also listen for manual storage events (same window)
-    const originalSetItem = localStorage.setItem;
-    localStorage.setItem = function(key, value) {
-        const oldValue = localStorage.getItem(key);
-        originalSetItem.call(this, key, value);
-        
-        if (key === 'bumable_products' && oldValue !== value) {
-            // Dispatch custom event for same-window updates
-            setTimeout(function() {
-                if (window.productManager) {
-                    window.productManager = new ProductManager();
-                    updateProductDisplay();
-                }
-            }, 100);
-        }
-    };
+    // Listen for real-time product updates from admin
+    setupProductSync();
+    
+    // Remove old localStorage listener as we're using Supabase now
+    console.log('✅ Admin sync initialized with cloud database');
 }
 
 // Navigation functionality
@@ -112,41 +86,93 @@ function initNavigation() {
     }
 }
 
-// Product system initialization
-function initProductSystem() {
+// Product system initialization with Supabase
+async function initProductSystem() {
     
     // Check if we're not in admin
     if (window.location.pathname.includes('admin')) {
         return;
     }
     
-    // Check if ProductManager exists (should be loaded from products.js)
-    if (window.ProductManager) {
-        window.productManager = new ProductManager();
-        updateProductDisplay();
-    } else {
-        // Try again after a short delay
-        setTimeout(initProductSystem, 1000);
+    try {
+        // Ensure Supabase is initialized
+        if (!window.supabaseDB) {
+            console.log('Waiting for Supabase database...');
+            setTimeout(initProductSystem, 1000);
+            return;
+        }
+        
+        console.log('Initializing product system with Supabase...');
+        await updateProductDisplay();
+        
+        // Set up real-time sync for instant updates
+        setupProductSync();
+        
+        console.log('✅ Product system initialized with cloud database');
+        
+    } catch (error) {
+        console.error('Error initializing product system:', error);
+        setTimeout(initProductSystem, 2000);
     }
 }
 
-// Update product display on website
-function updateProductDisplay() {
-    if (!window.productManager) {
-        return;
+// Update product display on website using Supabase
+async function updateProductDisplay() {
+    try {
+        if (!window.supabaseDB) {
+            console.log('Supabase not available for product display');
+            return;
+        }
+        
+        console.log('Loading products from cloud database...');
+        const products = await window.supabaseDB.getAllProducts();
+        console.log('Loaded', products.length, 'products from Supabase');
+        
+        // Update home page if we're on it
+        if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '' || window.location.pathname.endsWith('/')) {
+            await updateHomePageProducts(products);
+        }
+        
+        // Update shop page if we're on it
+        if (window.location.pathname.includes('shop') && (window.location.pathname.endsWith('/') || window.location.pathname.includes('shop/'))) {
+            await updateShopPageProducts(products);
+        }
+        
+    } catch (error) {
+        console.error('Error updating product display:', error);
     }
+}
+
+// Setup real-time product synchronization
+function setupProductSync() {
+    console.log('Setting up real-time product synchronization...');
     
-    const products = window.productManager.getAllProducts();
+    // Listen for admin panel updates
+    window.addEventListener('productUpdated', async function(event) {
+        console.log('Product updated - refreshing display...');
+        await updateProductDisplay();
+    });
     
-    // Update home page if we're on it
-    if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '' || window.location.pathname.endsWith('/')) {
-        updateHomePageProducts(products);
-    }
+    window.addEventListener('productAdded', async function(event) {
+        console.log('Product added - refreshing display...');
+        await updateProductDisplay();
+    });
     
-    // Update shop page if we're on it
-    if (window.location.pathname.includes('shop') && (window.location.pathname.endsWith('/') || window.location.pathname.includes('shop/'))) {
-        updateShopPageProducts(products);
-    }
+    window.addEventListener('productDeleted', async function(event) {
+        console.log('Product deleted - refreshing display...');
+        await updateProductDisplay();
+    });
+    
+    // Periodic refresh to catch any missed updates
+    setInterval(async () => {
+        try {
+            await updateProductDisplay();
+        } catch (error) {
+            console.error('Error in periodic product refresh:', error);
+        }
+    }, 30000); // Refresh every 30 seconds
+    
+    console.log('✅ Real-time product sync established');
 }
 
 // Update home page product showcase
@@ -199,34 +225,42 @@ function updateShopPageProducts(products) {
     // Shop page product update logic would go here
 }
 
-// Create product card for home page
+// Create product card for home page (Supabase data structure)
 function createHomeProductCard(product) {
     const card = document.createElement('div');
     card.className = 'product-card';
     
-    const salePrice = product.salePrice || product.regularPrice;
-    const discountPercent = product.onSale ? Math.round((1 - salePrice / product.regularPrice) * 100) : 0;
+    const salePrice = product.sale_price || product.regular_price;
+    const discountPercent = product.on_sale ? Math.round((1 - salePrice / product.regular_price) * 100) : 0;
+    
+    // Get image - prioritize gallery_images first, then image_url
+    let imagePath;
+    if (product.gallery_images && product.gallery_images.length > 0) {
+        imagePath = product.gallery_images[0];
+    } else {
+        imagePath = product.image_url || 'images/placeholder-product.svg';
+    }
     
     // Fix image path for homepage (remove ../ if present)
-    const imagePath = product.image.replace('../', '');
+    imagePath = imagePath.replace('../', '');
     
     card.innerHTML = `
         <div class="product-image">
             <img src="${imagePath}" alt="${product.name}" onerror="this.src='images/placeholder-product.svg'">
-            ${product.onSale ? `<span class="sale-badge">${discountPercent}% OFF</span>` : ''}
+            ${product.on_sale ? `<span class="sale-badge">${discountPercent}% OFF</span>` : ''}
         </div>
         <div class="product-info">
             <h3 class="product-name">${product.name}</h3>
             <div class="product-price">
                 <span class="current-price">₹${salePrice}</span>
-                ${product.onSale ? `<span class="original-price">₹${product.regularPrice}</span>` : ''}
+                ${product.on_sale ? `<span class="original-price">₹${product.regular_price}</span>` : ''}
             </div>
             <div class="product-actions">
                 <select class="size-select" id="size-${product.id}">
-                    ${product.availableSizes.map(size => `<option value="${size}">${size}</option>`).join('')}
+                    ${(product.available_sizes || ['M']).map(size => `<option value="${size}">${size}</option>`).join('')}
                 </select>
                 <button class="add-to-cart-btn" onclick="addToCartFromHome('${product.id}')">
-                    Add to Cart
+                    <i class="fas fa-shopping-cart"></i> Add to Cart
                 </button>
             </div>
         </div>
@@ -245,39 +279,47 @@ function addToCartFromHome(productId) {
     }
 }
 
-// Create product card for shop section on homepage
+// Create product card for shop section on homepage (Supabase data structure)
 function createShopProductCard(product) {
     const card = document.createElement('div');
     card.className = 'product-card';
     
-    const salePrice = product.onSale ? product.salePrice : product.regularPrice;
-    const discountPercent = product.onSale ? Math.round(((product.regularPrice - product.salePrice) / product.regularPrice) * 100) : 0;
+    const salePrice = product.on_sale ? product.sale_price : product.regular_price;
+    const discountPercent = product.on_sale ? Math.round(((product.regular_price - product.sale_price) / product.regular_price) * 100) : 0;
+    
+    // Get image - prioritize gallery_images first, then image_url
+    let imagePath;
+    if (product.gallery_images && product.gallery_images.length > 0) {
+        imagePath = product.gallery_images[0];
+    } else {
+        imagePath = product.image_url || 'images/placeholder-product.svg';
+    }
     
     // Fix image path for homepage (remove ../ if present)
-    const imagePath = product.image.replace('../', '');
+    imagePath = imagePath.replace('../', '');
     
     card.innerHTML = `
         <div class="product-image" style="background-image: url('${imagePath}')">
-            ${product.onSale ? `<div class="product-badge">${discountPercent}% OFF</div>` : ''}
+            ${product.on_sale ? `<div class="product-badge">${discountPercent}% OFF</div>` : ''}
         </div>
         <div class="product-content">
             <h3 class="product-name">${product.name}</h3>
             <div class="product-price">
                 <span class="sale-price">₹${salePrice}</span>
-                ${product.onSale ? `<span class="original-price">₹${product.regularPrice}</span>` : ''}
+                ${product.on_sale ? `<span class="original-price">₹${product.regular_price}</span>` : ''}
             </div>
             <div class="product-controls">
                 <select class="size-selector" id="shop-size-${product.id}">
                     <option value="">Choose Size</option>
-                    ${product.availableSizes.map(size => `<option value="${size}">${size}</option>`).join('')}
+                    ${(product.available_sizes || ['M']).map(size => `<option value="${size}">${size}</option>`).join('')}
                 </select>
                 <div class="quantity-control">
                     <button class="qty-btn" onclick="changeQuantity('shop-qty-${product.id}', -1)">-</button>
                     <div class="qty-display" id="shop-qty-${product.id}">1</div>
                     <button class="qty-btn" onclick="changeQuantity('shop-qty-${product.id}', 1)">+</button>
                 </div>
-                <button class="add-to-cart-btn" onclick="addToCartFromShop('${product.id}')" ${!product.inStock ? 'disabled' : ''}>
-                    ${product.inStock ? 'Add to Cart' : 'Out of Stock'}
+                <button class="add-to-cart-btn" onclick="addToCartFromShop('${product.id}')" ${!product.in_stock ? 'disabled' : ''}>
+                    ${product.in_stock ? 'Add to Cart' : 'Out of Stock'}
                 </button>
             </div>
         </div>

@@ -561,7 +561,7 @@ class UserAuthentication {
         });
     }
 
-    // Handle login (Supabase only)
+    // Handle login (Enhanced with device tracking)
     async handleLogin(e) {
         e.preventDefault();
         const formData = new FormData(e.target);
@@ -594,11 +594,10 @@ class UserAuthentication {
             const user = userResult.user;
 
             // Check password (Note: In production, passwords should be hashed)
-            // For now, this is a simple comparison - implement proper password hashing
             if (!user.password || user.password !== password) {
                 this.showError('login', 'Incorrect password');
-                // Log failed login
-                await window.supabaseDB.logUserActivity(user.id, email, 'failed_login', 'Incorrect password');
+                // Log failed login with device info
+                await this.logLoginActivity(email, 'failed_login', 'Incorrect password');
                 return;
             }
 
@@ -608,14 +607,26 @@ class UserAuthentication {
                 return;
             }
 
-            // Update login in Supabase
-            const loginResult = await window.supabaseDB.updateUserLogin(email);
+            // Get device and session information
+            const deviceInfo = this.getDeviceInfo();
+            const loginTime = new Date().toISOString();
+
+            // Update login in Supabase with detailed tracking
+            const loginResult = await window.supabaseDB.updateUserLogin(email, {
+                device_info: deviceInfo,
+                login_time: loginTime,
+                ip_address: await this.getIPAddress(),
+                user_agent: navigator.userAgent
+            });
             
             if (loginResult.success) {
                 this.currentUser = loginResult.user;
             } else {
-                this.currentUser = user; // Fallback to original user data
+                this.currentUser = user;
             }
+
+            // Log successful login activity with full details
+            await this.logLoginActivity(email, 'successful_login', 'User logged in successfully', deviceInfo);
 
             // Save session
             this.saveSession();
@@ -625,7 +636,23 @@ class UserAuthentication {
             this.closeAllModals();
             
             // Show success message
-            this.showNotification('Welcome back! You are now logged in.', 'success');
+            this.showNotification(`Welcome back, ${user.first_name}! You are now logged in.`, 'success');
+            
+            // Add welcome back notification to user's notification panel
+            if (window.notificationManager) {
+                setTimeout(async () => {
+                    await window.notificationManager.addNotification(
+                        'account',
+                        'Welcome Back!',
+                        `You have successfully logged in from ${deviceInfo.deviceType} using ${deviceInfo.browser}`,
+                        { 
+                            loginTime: loginTime,
+                            deviceInfo: deviceInfo,
+                            ipAddress: await this.getIPAddress()
+                        }
+                    );
+                }, 1000);
+            }
             
         } catch (error) {
             console.error('Login error:', error);
@@ -633,7 +660,7 @@ class UserAuthentication {
         }
     }
 
-    // Handle registration
+    // Handle registration (Enhanced with device tracking)
     async handleRegister(e) {
         e.preventDefault();
         
@@ -669,13 +696,26 @@ class UserAuthentication {
         try {
             // Check if email already exists using Supabase
             const existingUser = await window.supabaseDB.getUserByEmail(userData.email);
-            if (existingUser) {
+            if (existingUser.success && existingUser.user) {
                 this.showError('register', 'An account with this email already exists');
                 return;
             }
 
+            // Get device and registration information
+            const deviceInfo = this.getDeviceInfo();
+            const registrationTime = new Date().toISOString();
+
+            // Enhanced user data with device tracking
+            const enhancedUserData = {
+                ...userData,
+                device_info: deviceInfo,
+                registration_time: registrationTime,
+                registration_ip: await this.getIPAddress(),
+                user_agent: navigator.userAgent
+            };
+
             // Register user in Supabase cloud database
-            const result = await window.supabaseDB.registerUser(userData);
+            const result = await window.supabaseDB.registerUser(enhancedUserData);
             if (!result.success) {
                 this.showError('register', result.error || 'Registration failed. Please try again.');
                 return;
@@ -684,7 +724,10 @@ class UserAuthentication {
             // Set current user with the registered user data
             this.currentUser = result.user;
             
-            // Save session (temporary session data only, user data is in cloud)
+            // Log registration activity with device info
+            await this.logLoginActivity(userData.email, 'account_created', 'New account registered', deviceInfo);
+
+            // Save session
             this.saveSession();
 
             // Update UI
@@ -692,7 +735,22 @@ class UserAuthentication {
             this.closeAllModals();
             
             // Show success message
-            this.showNotification('Account created successfully! Welcome to BUMABLE!', 'success');
+            this.showNotification(`Account created successfully! Welcome to BUMABLE, ${userData.firstname}!`, 'success');
+            
+            // Add welcome notification for new user
+            if (window.notificationManager) {
+                setTimeout(async () => {
+                    await window.notificationManager.addNotification(
+                        'account',
+                        'Welcome to BUMABLE!',
+                        `Your account has been created successfully. Start exploring our premium underwear collection!`,
+                        { 
+                            registrationDate: new Date().toISOString(),
+                            userEmail: userData.email
+                        }
+                    );
+                }, 1000);
+            }
             
         } catch (error) {
             console.error('Registration error:', error);
@@ -1151,18 +1209,15 @@ class UserAuthentication {
         // This will be used by cart.js to check if user can add items
     }
 
-    // Logout user
-    logout() {
+    // Logout user (Enhanced with device tracking)
+    async logout() {
         if (this.currentUser) {
-            // Record logout activity in Supabase if available
-            if (window.supabaseDB && window.supabaseDB.isReady()) {
-                window.supabaseDB.recordActivity(this.currentUser.email, 'logout')
-                    .catch(error => console.error('Failed to record logout activity:', error));
-            }
+            // Record logout activity with device info
+            await this.logLoginActivity(this.currentUser.email, 'logout', 'User logged out');
         }
         
         this.currentUser = null;
-        sessionStorage.removeItem(this.sessionKey);  // Use sessionStorage instead of localStorage
+        sessionStorage.removeItem(this.sessionKey);
         this.updateUIState();
         this.showNotification('You have been logged out successfully.', 'info');
     }
@@ -1175,6 +1230,102 @@ class UserAuthentication {
     // Get current user
     getCurrentUser() {
         return this.currentUser;
+    }
+
+    // Get detailed device information for admin tracking
+    getDeviceInfo() {
+        const userAgent = navigator.userAgent;
+        const platform = navigator.platform;
+        const language = navigator.language;
+        const screenResolution = `${screen.width}x${screen.height}`;
+        const viewport = `${window.innerWidth}x${window.innerHeight}`;
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        
+        // Detect device type
+        let deviceType = 'Desktop';
+        if (/Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)) {
+            deviceType = 'Mobile';
+        } else if (/iPad|Android.*Tablet/i.test(userAgent)) {
+            deviceType = 'Tablet';
+        }
+        
+        // Detect browser
+        let browser = 'Unknown';
+        if (userAgent.includes('Chrome')) browser = 'Chrome';
+        else if (userAgent.includes('Firefox')) browser = 'Firefox';
+        else if (userAgent.includes('Safari')) browser = 'Safari';
+        else if (userAgent.includes('Edge')) browser = 'Edge';
+        else if (userAgent.includes('Opera')) browser = 'Opera';
+        
+        // Detect operating system
+        let os = 'Unknown';
+        if (userAgent.includes('Windows NT')) os = 'Windows';
+        else if (userAgent.includes('Mac OS X')) os = 'macOS';
+        else if (userAgent.includes('Linux')) os = 'Linux';
+        else if (userAgent.includes('Android')) os = 'Android';
+        else if (userAgent.includes('iPhone') || userAgent.includes('iPad')) os = 'iOS';
+        
+        return {
+            device_type: deviceType,
+            browser: browser,
+            operating_system: os,
+            platform: platform,
+            screen_resolution: screenResolution,
+            viewport_size: viewport,
+            language: language,
+            timezone: timezone,
+            user_agent: userAgent,
+            online_status: navigator.onLine,
+            connection_type: navigator.connection ? navigator.connection.effectiveType : 'Unknown',
+            timestamp: new Date().toISOString()
+        };
+    }
+
+    // Get user's IP address (for location tracking)
+    async getIPAddress() {
+        try {
+            const response = await fetch('https://api.ipify.org?format=json');
+            const data = await response.json();
+            return data.ip || 'Unknown';
+        } catch (error) {
+            console.error('Error getting IP address:', error);
+            return 'Unknown';
+        }
+    }
+
+    // Enhanced login activity logging for admin tracking
+    async logLoginActivity(email, activityType, description, deviceInfo = null) {
+        try {
+            if (!window.supabaseDB || !window.supabaseDB.isReady()) {
+                return;
+            }
+
+            // If device info not provided, get it
+            if (!deviceInfo) {
+                deviceInfo = this.getDeviceInfo();
+            }
+
+            const activityData = {
+                email: email,
+                activity_type: activityType,
+                description: description,
+                device_info: deviceInfo,
+                ip_address: await this.getIPAddress(),
+                timestamp: new Date().toISOString(),
+                session_id: this.generateSessionId()
+            };
+
+            // Log activity in Supabase for admin tracking
+            await window.supabaseDB.logUserActivity(activityData);
+            
+        } catch (error) {
+            console.error('Error logging activity:', error);
+        }
+    }
+
+    // Generate unique session ID for tracking
+    generateSessionId() {
+        return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     }
 
     // Record login activity for admin tracking (now handled by Supabase)

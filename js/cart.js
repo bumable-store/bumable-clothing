@@ -18,19 +18,47 @@ class ShoppingCart {
         this.tax = 0;
         this.shipping = 0;
         this.total = 0;
+        this.currentUser = null;
         
         this.loadCart();
         this.bindEvents();
         this.updateDisplay();
+        
+        // Listen for authentication changes
+        this.setupAuthListener();
     }
 
-    // Load cart from localStorage
-    loadCart() {
+    // Setup authentication listener for user changes
+    setupAuthListener() {
+        // Check for auth system and set up listener
+        const checkAuth = () => {
+            if (window.authSystem) {
+                this.currentUser = window.authSystem.getCurrentUser();
+                this.loadUserCart();
+            }
+        };
+        
+        // Check initially and periodically
+        checkAuth();
+        setInterval(checkAuth, 1000);
+        
+        // Listen for storage changes (login/logout events)
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'bumableUserSession') {
+                checkAuth();
+            }
+        });
+    }
+
+    // Load cart from user-specific storage (Supabase or localStorage)
+    async loadCart() {
         try {
-            const savedCart = localStorage.getItem('bumableCart');
-            if (savedCart) {
-                this.items = JSON.parse(savedCart);
-                this.calculateTotals();
+            // Check if user is logged in
+            if (this.currentUser && this.currentUser.email) {
+                await this.loadUserCart();
+            } else {
+                // Load guest cart from localStorage
+                this.loadGuestCart();
             }
         } catch (error) {
             console.warn('Error loading cart:', error);
@@ -38,26 +66,134 @@ class ShoppingCart {
         }
     }
 
-    // Save cart to localStorage
-    saveCart() {
+    // Load cart for logged-in user from Supabase
+    async loadUserCart() {
+        if (!this.currentUser || !this.currentUser.email) {
+            this.loadGuestCart();
+            return;
+        }
+
+        try {
+            // Load cart from Supabase user_carts table
+            if (window.supabase) {
+                const { data, error } = await window.supabase
+                    .from('user_carts')
+                    .select('cart_data')
+                    .eq('user_email', this.currentUser.email)
+                    .single();
+
+                if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+                    console.warn('Error loading user cart from Supabase:', error);
+                    this.loadGuestCart();
+                    return;
+                }
+
+                if (data && data.cart_data) {
+                    this.items = JSON.parse(data.cart_data);
+                    this.calculateTotals();
+                    this.updateDisplay();
+                    console.log('✅ User cart loaded from cloud');
+                    return;
+                }
+            }
+            
+            // Fallback to guest cart if no cloud cart found
+            this.loadGuestCart();
+        } catch (error) {
+            console.warn('Error loading user cart:', error);
+            this.loadGuestCart();
+        }
+    }
+
+    // Load guest cart from localStorage
+    loadGuestCart() {
+        try {
+            const savedCart = localStorage.getItem('bumableCart');
+            if (savedCart) {
+                this.items = JSON.parse(savedCart);
+                this.calculateTotals();
+            }
+        } catch (error) {
+            console.warn('Error loading guest cart:', error);
+            this.items = [];
+        }
+    }
+
+    // Save cart to appropriate storage
+    async saveCart() {
+        try {
+            // Save to user-specific storage if logged in
+            if (this.currentUser && this.currentUser.email) {
+                await this.saveUserCart();
+            } else {
+                // Save to guest localStorage
+                this.saveGuestCart();
+            }
+        } catch (error) {
+            console.warn('Error saving cart:', error);
+            // Fallback to localStorage
+            this.saveGuestCart();
+        }
+    }
+
+    // Save cart for logged-in user to Supabase
+    async saveUserCart() {
+        if (!this.currentUser || !this.currentUser.email) {
+            this.saveGuestCart();
+            return;
+        }
+
+        try {
+            if (window.supabase) {
+                const cartData = JSON.stringify(this.items);
+                
+                const { error } = await window.supabase
+                    .from('user_carts')
+                    .upsert({
+                        user_email: this.currentUser.email,
+                        cart_data: cartData,
+                        updated_at: new Date().toISOString()
+                    });
+
+                if (error) {
+                    console.warn('Error saving user cart to Supabase:', error);
+                    this.saveGuestCart();
+                } else {
+                    console.log('✅ User cart saved to cloud');
+                }
+            }
+            
+            // Also save to localStorage as backup
+            this.saveGuestCart();
+        } catch (error) {
+            console.warn('Error saving user cart:', error);
+            this.saveGuestCart();
+        }
+    }
+
+    // Save guest cart to localStorage
+    saveGuestCart() {
         try {
             localStorage.setItem('bumableCart', JSON.stringify(this.items));
         } catch (error) {
-            console.warn('Error saving cart:', error);
+            console.warn('Error saving guest cart:', error);
         }
     }
 
     // Add item to cart
-    addItem(productId, size, quantity = 1) {
+    async addItem(productId, size, quantity = 1) {
         // 🔐 AUTHENTICATION CHECK: Require login for cart actions
         if (!window.authSystem || !window.authSystem.isLoggedIn()) {
             if (window.authSystem) {
                 window.authSystem.requireLogin('add items to cart');
             } else {
-                alert('Please login to add items to your cart.');
+                this.showNotification('Please login to add items to your cart.', 'warning');
             }
             return false;
         }
+
+        // Update current user reference
+        this.currentUser = window.authSystem.getCurrentUser();
 
         // Validate inputs
         if (!productId || !size || quantity < 1) {
@@ -118,27 +254,38 @@ class ShoppingCart {
         }
 
         this.calculateTotals();
-        this.saveCart();
+        await this.saveCart();
         this.updateDisplay();
         this.showNotification(`${product.name} added to cart`, 'success');
+        
+        // Add user notification for cart action
+        if (window.notificationManager) {
+            await window.notificationManager.addNotification(
+                'cart',
+                'Item Added to Cart',
+                `${product.name} (${size}) has been added to your cart`,
+                { productId, size, quantity, price: product.salePrice || product.regularPrice }
+            );
+        }
+        
         return true;
     }
 
     // Remove item from cart
-    removeItem(index) {
+    async removeItem(index) {
         if (index >= 0 && index < this.items.length) {
             const removedItem = this.items[index];
             this.items.splice(index, 1);
             
             this.calculateTotals();
-            this.saveCart();
+            await this.saveCart();
             this.updateDisplay();
             this.showNotification(`${removedItem.name} removed from cart`, 'info');
         }
     }
 
     // Update item quantity
-    updateItemQuantity(index, newQuantity) {
+    async updateItemQuantity(index, newQuantity) {
         if (index < 0 || index >= this.items.length) return;
         
         if (newQuantity <= 0) {
@@ -153,16 +300,16 @@ class ShoppingCart {
 
         this.items[index].quantity = newQuantity;
         this.calculateTotals();
-        this.saveCart();
+        await this.saveCart();
         this.updateDisplay();
     }
 
     // Clear entire cart
-    clearCart() {
+    async clearCart() {
         if (confirm('Are you sure you want to clear your cart?')) {
             this.items = [];
             this.calculateTotals();
-            this.saveCart();
+            await this.saveCart();
             this.updateDisplay();
             this.showNotification('Cart cleared', 'info');
         }

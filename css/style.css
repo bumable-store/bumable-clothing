@@ -72,51 +72,59 @@ a {
     background: transparent;
     border: none;
     position: relative;
-    font-size: 16px;
+    font-size: 14px;
     cursor: pointer;
-    padding: 8px;
+    padding: 8px 12px;
     color: #333;
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+    border-radius: 6px;
+    font-weight: 500;
 }
 
 .btn-login:hover {
     background: rgba(255, 107, 107, 0.1);
     color: #ff6b6b;
-    transform: scale(1.1);
 }
 
 .btn-login i {
-    font-size: 18px;
+    font-size: 16px;
+    margin-right: 6px;
 }
 
 .btn-cart {
     background: transparent;
     border: none;
     position: relative;
-    font-size: 18px;
+    font-size: 16px;
     cursor: pointer;
-    padding: 10px;
+    padding: 8px;
+    color: #333;
+    transition: all 0.3s ease;
+    border-radius: 6px;
+}
+
+.btn-cart:hover {
+    background: rgba(255, 107, 107, 0.1);
+    color: #ff6b6b;
 }
 
 .cart-count {
     position: absolute;
-    top: -5px;
-    right: -5px;
+    top: 2px;
+    right: 2px;
     background: #ff6b6b;
     color: white;
     border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    font-size: 12px;
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-weight: 600;
 }
 
 /* Notifications Button */
@@ -126,10 +134,12 @@ a {
     outline: none !important;
     box-shadow: none !important;
     position: relative;
-    font-size: 18px;
+    font-size: 16px;
     cursor: pointer;
-    padding: 10px;
-    margin-right: 10px;
+    padding: 8px;
+    color: #333;
+    transition: all 0.3s ease;
+    border-radius: 6px;
 }
 
 .btn-notifications:focus {
@@ -142,6 +152,8 @@ a {
     outline: none !important;
     border: none !important;
     box-shadow: none !important;
+    background: rgba(255, 107, 107, 0.1) !important;
+    color: #ff6b6b;
 }
 
 .btn-notifications:active {
@@ -152,17 +164,18 @@ a {
 
 .notification-count {
     position: absolute;
-    top: -5px;
-    right: -5px;
+    top: 2px;
+    right: 2px;
     background: #28a745;
     color: white;
     border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    font-size: 12px;
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-weight: 600;
 }
 
 /* Notifications Dropdown */
@@ -205,14 +218,18 @@ a {
 }
 
 .notifications-list {
-    max-height: 300px;
+    max-height: 350px;
     overflow-y: auto;
 }
 
 .notification-item {
-    padding: 15px 20px;
+    padding: 12px 15px;
     border-bottom: 1px solid #f5f5f5;
     cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    transition: background 0.2s ease;
 }
 
 .notification-item:hover {
@@ -224,15 +241,107 @@ a {
     border-left: 3px solid #007bff;
 }
 
+.notification-item.read {
+    opacity: 0.7;
+}
+
+.notification-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
 .notification-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notification-title {
     font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+
+.notification-message {
+    font-size: 0.85rem;
+    color: #666;
     line-height: 1.4;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
+    word-wrap: break-word;
 }
 
 .notification-time {
-    font-size: 0.8rem;
-    color: #666;
+    font-size: 0.75rem;
+    color: #999;
+}
+
+.notification-actions {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.delete-notification {
+    background: none;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: color 0.2s ease;
+}
+
+.delete-notification:hover {
+    color: #dc3545;
+    background: rgba(220, 53, 69, 0.1);
+}
+
+.notification-actions-bar {
+    padding: 12px 15px;
+    border-top: 1px solid #f5f5f5;
+    background: #fafafa;
+}
+
+.mark-all-read-btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: background 0.2s ease;
+    width: 100%;
+}
+
+.mark-all-read-btn:hover {
+    background: #0056b3;
+}
+
+.no-notifications {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #999;
+}
+
+.no-notifications i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.no-notifications p {
+    margin: 0;
+    font-size: 0.9rem;
 }
 
 .no-notifications {
@@ -828,8 +937,9 @@ a {
     background: #ffffff;
     backdrop-filter: blur(10px);
     z-index: 1000;
-    padding: 1rem 0;
+    padding: 0.5rem 0;
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .navbar .container {
@@ -839,16 +949,19 @@ a {
 }
 
 .logo {
-    font-size: 28px;
+    font-size: 22px;
     font-weight: 700;
     color: #ff6b6b;
-    letter-spacing: 2px;
+    letter-spacing: 1.5px;
+    margin: 0;
 }
 
 .nav-list {
     display: flex;
     list-style: none;
-    gap: 2rem;
+    gap: 1.5rem;
+    align-items: center;
+    margin: 0;
 }
 
 .nav-link {
@@ -883,7 +996,7 @@ a {
 .nav-actions {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.5rem;
 }
 
 .nav-toggle {
@@ -3285,6 +3398,11 @@ section {
     border-right: 1px solid #e5e7eb;
     border-radius: 0;
     outline: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    padding: 0;
 }
 
 /* Ultra-Modern Add to Cart Button */
@@ -3305,6 +3423,12 @@ section {
     overflow: hidden;
     margin-top: 2rem;
     backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1;
+    min-height: 54px;
 }
 
 .modal-add-to-cart-btn::before {
@@ -3336,11 +3460,17 @@ section {
     background: #9ca3af;
     cursor: not-allowed;
     transform: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1;
 }
 
 .modal-add-to-cart-btn:disabled:hover {
     transform: none;
     box-shadow: 0 4px 15px rgba(156, 163, 175, 0.3);
+    background: #9ca3af;
 }
 
 /* Loading state */
@@ -3443,6 +3573,11 @@ section {
         width: 60px;
         height: 40px;
         font-size: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        padding: 0;
     }
 }
 
@@ -3578,6 +3713,17 @@ section {
     
     .btn-login i {
         font-size: 18px;
+    }
+    
+    /* Hide login text on mobile - show only icon like notification and cart */
+    .btn-login {
+        font-size: 0 !important; /* Hide text */
+        line-height: 0 !important;
+    }
+    
+    .btn-login i {
+        font-size: 18px !important; /* Show icon */
+        margin: 0 !important;
     }
     
     .btn-cart {
