@@ -131,6 +131,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_orders_customer_email ON orders(customer_email);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_user_activities_user_id ON user_activities(user_id); -- Foreign key index
 
 -- Composite index for products (better than multiple single-column indexes)
 CREATE INDEX IF NOT EXISTS idx_products_category_stock ON products(category, in_stock) WHERE in_stock = true;
@@ -232,27 +233,28 @@ CREATE TRIGGER trigger_set_order_number
 -- Enable RLS on products table
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 
--- Single efficient policy for products SELECT (no duplicates)
+-- Optimized policy for products SELECT (auth function wrapped in SELECT for performance)
 CREATE POLICY "products_select_policy" ON products
     FOR SELECT
     USING (
         -- Everyone can see in-stock products, authenticated users can see all
-        in_stock = true OR auth.role() = 'authenticated'
+        -- (select ...) prevents re-evaluation for each row
+        in_stock = true OR (SELECT auth.role()) = 'authenticated'
     );
 
--- Products modification policies (authenticated only)
+-- Products modification policies (authenticated only, optimized with SELECT)
 CREATE POLICY "products_insert_policy" ON products
     FOR INSERT
-    WITH CHECK (auth.role() = 'authenticated');
+    WITH CHECK ((SELECT auth.role()) = 'authenticated');
 
 CREATE POLICY "products_update_policy" ON products
     FOR UPDATE
-    USING (auth.role() = 'authenticated')
-    WITH CHECK (auth.role() = 'authenticated');
+    USING ((SELECT auth.role()) = 'authenticated')
+    WITH CHECK ((SELECT auth.role()) = 'authenticated');
 
 CREATE POLICY "products_delete_policy" ON products
     FOR DELETE
-    USING (auth.role() = 'authenticated');
+    USING ((SELECT auth.role()) = 'authenticated');
 
 -- Success message
 SELECT 'BUMABLE Database setup completed successfully! 🎉' as message;
