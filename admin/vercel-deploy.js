@@ -18,7 +18,7 @@
  */
 
 // REPLACE THIS WITH YOUR ACTUAL VERCEL DEPLOY HOOK URL
-const VERCEL_DEPLOY_HOOK_URL = 'https://api.vercel.com/v1/integrations/deploy/YOUR_DEPLOY_HOOK_ID';
+const VERCEL_DEPLOY_HOOK_URL = 'https://api.vercel.com/v1/integrations/deploy/prj_FVAjEXBWHGBD7I7MsmlStOPJcbZc/pTE1h22jCC';
 
 /**
  * Trigger Vercel deployment via deploy hook
