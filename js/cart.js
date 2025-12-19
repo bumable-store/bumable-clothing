@@ -262,6 +262,11 @@ class ShoppingCart {
         this.updateDisplay();
         this.showNotification(`${product.name} added to cart`, 'success');
         
+        // 📊 ANALYTICS: Track add to cart event
+        if (window.trackAddToCart) {
+            window.trackAddToCart(product, quantity);
+        }
+        
         // Add user notification for cart action
         if (window.notificationManager) {
             await window.notificationManager.addNotification(

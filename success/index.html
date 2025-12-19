@@ -397,6 +397,10 @@
     <div id="cart-overlay" class="cart-overlay" onclick="toggleCart()"></div>
 
     <!-- Scripts -->
+    <script src="../js/logger.js?v=20251219b"></script>
+    <script src="../js/cache.js?v=20251219b"></script>
+    <script src="../js/cookie-consent.js?v=20251219c"></script>
+    <script src="../js/analytics.js?v=20251219c"></script>
     <script src="../js/cart.js?v=20251201i"></script>
     <script src="../js/products.js?v=20251201i"></script>
     <script src="../js/main.js?v=20251201i"></script>
@@ -421,6 +425,17 @@
 
             const orderData = JSON.parse(recentOrder);
             displayOrderDetails(orderData);
+            
+            // 📊 ANALYTICS: Track purchase conversion
+            if (window.trackPurchase && orderData) {
+                window.trackPurchase(
+                    orderData.orderId || 'BUM' + Date.now(),
+                    orderData.items || [],
+                    orderData.total || 0,
+                    orderData.shipping || 0,
+                    orderData.tax || 0
+                );
+            }
         }
 
         function displayOrderDetails(orderData) {

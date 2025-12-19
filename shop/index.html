@@ -1224,6 +1224,11 @@
             currentModalProduct = product;
             modalQuantity = 0;
             
+            // 📊 ANALYTICS: Track product view
+            if (window.trackProductView) {
+                window.trackProductView(product);
+            }
+            
             // Update modal content
             document.getElementById('modalProductName').textContent = product.name;
             

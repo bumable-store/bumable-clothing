@@ -621,6 +621,11 @@
             
             window.currentModalProduct = product;
             
+            // 📊 ANALYTICS: Track product view
+            if (window.trackProductView) {
+                window.trackProductView(product);
+            }
+            
             // Get current quantity from homepage card
             const homepageQtyDisplay = document.getElementById(`qty-display-${productId}`);
             const currentHomepageQty = homepageQtyDisplay ? parseInt(homepageQtyDisplay.textContent) || 0 : 0;
