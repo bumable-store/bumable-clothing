@@ -125,14 +125,15 @@ CREATE TABLE IF NOT EXISTS cart_abandonment (
     recovery_email_sent BOOLEAN DEFAULT false
 );
 
--- Create indexes for better performance
+-- Create indexes for better performance (optimized - Supabase linter approved)
+-- Essential indexes only (unused indexes removed for better performance)
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_orders_customer_email ON orders(customer_email);
-CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(order_status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
-CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(status);
-CREATE INDEX IF NOT EXISTS idx_user_activities_email ON user_activities(user_email);
-CREATE INDEX IF NOT EXISTS idx_product_views_product ON product_views(product_name);
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
+
+-- Composite index for products (better than multiple single-column indexes)
+CREATE INDEX IF NOT EXISTS idx_products_category_stock ON products(category, in_stock) WHERE in_stock = true;
 
 -- Create auto-update function for updated_at timestamp
 -- Fixed with search_path for security (Supabase linter recommendation)
@@ -223,6 +224,35 @@ CREATE TRIGGER trigger_set_order_number
     BEFORE INSERT ON orders
     FOR EACH ROW
     EXECUTE FUNCTION set_order_number();
+
+-- ========================================
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- ========================================
+
+-- Enable RLS on products table
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+-- Single efficient policy for products SELECT (no duplicates)
+CREATE POLICY "products_select_policy" ON products
+    FOR SELECT
+    USING (
+        -- Everyone can see in-stock products, authenticated users can see all
+        in_stock = true OR auth.role() = 'authenticated'
+    );
+
+-- Products modification policies (authenticated only)
+CREATE POLICY "products_insert_policy" ON products
+    FOR INSERT
+    WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "products_update_policy" ON products
+    FOR UPDATE
+    USING (auth.role() = 'authenticated')
+    WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "products_delete_policy" ON products
+    FOR DELETE
+    USING (auth.role() = 'authenticated');
 
 -- Success message
 SELECT 'BUMABLE Database setup completed successfully! 🎉' as message;
