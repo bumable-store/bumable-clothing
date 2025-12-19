@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+
+# Disallow admin and configuration pages
+Disallow: /admin/
+Disallow: /login/
+
+# Allow important pages
+Allow: /shop/
+Allow: /about/
+Allow: /checkout/
+Allow: /policy/
+Allow: /shipping/
+Allow: /faq/
+
+# Sitemap location
+Sitemap: https://bumable-store.github.io/bumable-clothing/sitemap.xml
+
+# Crawl delay (be polite)
+Crawl-delay: 1
