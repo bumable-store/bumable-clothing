@@ -944,9 +944,16 @@
         </div>
     </main>
 
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Performance & Security Utilities -->
+    <script src="../js/logger.js?v=20251219b"></script>
+    <script src="../js/cache.js?v=20251219b"></script>
+    <script src="../js/lazy-load.js?v=20251219b"></script>
+    <!-- Core Scripts -->
     <script src="../js/supabase-db.js"></script>
     <script src="../js/auth.js"></script>
-    <script src="../js/products.js"></script>
+    <script src="../js/products.js?v=20251219b"></script>
     <script src="../js/cart.js"></script>
     <script src="../js/main.js"></script>
     <script>
@@ -1045,7 +1052,7 @@
                 
                 return `
                     <div class="product-card" data-product-id="${product.id}" onclick="openProductModal('${product.id}')">
-                        <div class="product-image" style="background-image: url(${product.image})"></div>
+                        <div class="product-image lazy-loading" data-src="${product.image}"></div>
                         <div class="product-name">${product.name}</div>
                         ${priceHtml}
                         ${stockHtml}
@@ -1073,6 +1080,11 @@
                     </div>
                 `;
             }).join("");
+            
+            // Trigger lazy loading for newly added images
+            if (window.LazyLoader) {
+                setTimeout(() => window.LazyLoader.update(), 100);
+            }
         }
         
         window.changeQuantity = async function(productId, change) {

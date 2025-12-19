@@ -296,6 +296,9 @@
         </div>
     </div>
 
+    <!-- Load security utilities -->
+    <script src="../js/security.js"></script>
+    
     <script>
         // Admin credentials (in production, this should be server-side)
         const ADMIN_CREDENTIALS = {
@@ -354,6 +357,15 @@
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             
+            // Check rate limiting
+            if (window.loginRateLimiter) {
+                const rateCheck = window.loginRateLimiter.canProceed('admin-login');
+                if (!rateCheck.allowed) {
+                    showError(`Too many login attempts. Please wait ${rateCheck.waitTime} seconds before trying again.`);
+                    return;
+                }
+            }
+            
             // Validate input
             if (!username || !password) {
                 showError('Please enter both username and password.');
@@ -367,6 +379,11 @@
             // Simulate API call delay
             setTimeout(() => {
                 if (validateCredentials(username, password)) {
+                    // Reset rate limiter on successful login
+                    if (window.loginRateLimiter) {
+                        window.loginRateLimiter.reset('admin-login');
+                    }
+                    
                     // Create admin session
                     createAdminSession(username);
                     

@@ -509,8 +509,16 @@
         </div>
     </div>
 
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Performance & Security Utilities -->
+    <script src="../js/logger.js?v=20251219b"></script>
+    <script src="../js/cache.js?v=20251219b"></script>
+    <script src="../js/security.js"></script>
+    <!-- Core Scripts -->
+    <script src="../js/supabase-db.js"></script>
     <script src="../js/cart.js"></script>
-    <script src="../js/products.js"></script>
+    <script src="../js/products.js?v=20251219b"></script>
     <script src="../js/main.js"></script>
     <script>
         // Initialize checkout page
@@ -626,11 +634,14 @@
 
         // Validate form
         function validateForm(data) {
-            console.log('Form validation data:', data);
+            window.Logger?.log('Form validation data:', data);
+            
+            // Use security utilities if available
+            const validator = window.InputValidator || null;
             
             // Check customer information
             if (!data.firstName || !data.lastName || !data.email || !data.phone) {
-                console.error('Missing customer information:', { 
+                window.Logger?.error('Missing customer information:', { 
                     firstName: data.firstName, 
                     lastName: data.lastName, 
                     email: data.email, 
@@ -641,20 +652,42 @@
                 return false;
             }
             
+            // Sanitize inputs
+            if (validator) {
+                data.firstName = validator.sanitizeText(data.firstName, 100);
+                data.lastName = validator.sanitizeText(data.lastName, 100);
+                data.email = validator.sanitizeEmail(data.email);
+                data.address = validator.sanitizeText(data.address, 500);
+                data.city = validator.sanitizeText(data.city, 100);
+                data.state = validator.sanitizeText(data.state, 100);
+            }
+            
             // Validate email format
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(data.email)) {
+            if (validator && !validator.isValidEmail(data.email)) {
                 alert('Please enter a valid email address.');
                 document.querySelector('#email').focus();
                 return false;
+            } else if (!validator) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(data.email)) {
+                    alert('Please enter a valid email address.');
+                    document.querySelector('#email').focus();
+                    return false;
+                }
             }
             
             // Validate phone number (Indian format)
-            const phoneRegex = /^[6-9]\d{9}$/;
-            if (!phoneRegex.test(data.phone.replace(/\s+/g, ''))) {
-                alert('Please enter a valid 10-digit Indian mobile number.');
+            if (validator && !validator.isValidPhone(data.phone)) {
+                alert('Please enter a valid 10-digit Indian mobile number starting with 6-9.');
                 document.querySelector('#phone').focus();
                 return false;
+            } else if (!validator) {
+                const phoneRegex = /^[6-9]\d{9}$/;
+                if (!phoneRegex.test(data.phone.replace(/\s+/g, ''))) {
+                    alert('Please enter a valid 10-digit Indian mobile number.');
+                    document.querySelector('#phone').focus();
+                    return false;
+                }
             }
             
             // Check shipping address
@@ -665,11 +698,17 @@
             }
             
             // Validate pincode (6 digits)
-            const pincodeRegex = /^\d{6}$/;
-            if (!pincodeRegex.test(data.pincode)) {
+            if (validator && !validator.isValidPincode(data.pincode)) {
                 alert('Please enter a valid 6-digit PIN code.');
                 document.querySelector('#pincode').focus();
                 return false;
+            } else if (!validator) {
+                const pincodeRegex = /^\d{6}$/;
+                if (!pincodeRegex.test(data.pincode)) {
+                    alert('Please enter a valid 6-digit PIN code.');
+                    document.querySelector('#pincode').focus();
+                    return false;
+                }
             }
             
             // Check payment method
@@ -684,6 +723,15 @@
 
         // Process order
         async function processOrder(orderData) {
+            // Check rate limiting
+            if (window.checkoutLimiter) {
+                const rateCheck = window.checkoutLimiter.canProceed('checkout');
+                if (!rateCheck.allowed) {
+                    alert(`Too many checkout attempts. Please wait ${rateCheck.waitTime} seconds before trying again.`);
+                    return;
+                }
+            }
+            
             try {
                 // Disable the submit button to prevent multiple submissions
                 const submitBtn = document.querySelector('.btn-place-order');
@@ -729,9 +777,9 @@
                         throw new Error('Failed to save order to database: ' + result.error);
                     }
                     
-                    console.log('✅ Order saved to Supabase successfully');
+                    window.Logger?.log('✅ Order saved to Supabase successfully');
                 } else {
-                    console.warn('⚠️ Supabase not configured - order not saved to cloud database');
+                    window.Logger?.warn('⚠️ Supabase not configured - order not saved to cloud database');
                     alert('Warning: Database not configured. Order cannot be saved. Please contact support.');
                     
                     // Re-enable submit button
@@ -780,7 +828,7 @@ You will receive a confirmation email shortly.
                 }, 1000);
                 
             } catch (error) {
-                console.error('Detailed error information:', {
+                window.Logger?.error('Detailed error information:', {
                     error: error,
                     message: error.message,
                     stack: error.stack,
@@ -802,30 +850,30 @@ You will receive a confirmation email shortly.
             try {
                 // Load product manager if not available
                 if (!window.ProductManager) {
-                    console.log('ProductManager not available, skipping stock reduction');
+                    window.Logger?.log('ProductManager not available, skipping stock reduction');
                     return;
                 }
                 
                 const productManager = new ProductManager();
                 if (productManager && typeof productManager.processOrder === 'function') {
                     const stockUpdates = productManager.processOrder(orderData.items);
-                    console.log('Stock updated after order:', stockUpdates);
+                    window.Logger?.log('Stock updated after order:', stockUpdates);
                     
                     // Notify about low stock if any
                     const lowStockItems = stockUpdates.filter(update => update.newStock <= 10 && update.newStock > 0);
                     const outOfStockItems = stockUpdates.filter(update => update.newStock === 0);
                     
                     if (outOfStockItems.length > 0) {
-                        console.warn('Items now out of stock:', outOfStockItems);
+                        window.Logger?.warn('Items now out of stock:', outOfStockItems);
                     }
                     if (lowStockItems.length > 0) {
-                        console.warn('Items with low stock:', lowStockItems);
+                        window.Logger?.warn('Items with low stock:', lowStockItems);
                     }
                 } else {
-                    console.log('ProductManager.processOrder not available, skipping stock reduction');
+                    window.Logger?.log('ProductManager.processOrder not available, skipping stock reduction');
                 }
             } catch (error) {
-                console.error('Error in stock reduction:', error);
+                window.Logger?.error('Error in stock reduction:', error);
                 // Don't throw error - stock reduction failure shouldn't prevent order completion
             }
         }
@@ -836,7 +884,7 @@ You will receive a confirmation email shortly.
             
             // Customer data is now managed in Supabase through orders
             // No need to maintain separate customer cache in localStorage
-            console.log('Customer order data tracked in Supabase orders table');
+            window.Logger?.log('Customer order data tracked in Supabase orders table');
         }
 
         // Generate UPI QR code (placeholder)

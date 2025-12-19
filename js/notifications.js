@@ -65,15 +65,15 @@ class NotificationManager {
                     .limit(this.maxNotifications);
 
                 if (error) {
-                    console.warn('Error loading user notifications:', error);
+                    window.Logger?.warn('Error loading user notifications:', error);
                 } else if (data) {
                     this.notifications = data;
                     this.updateNotificationUI();
-                    console.log(`✅ Loaded ${data.length} notifications for user`);
+                    window.Logger?.success(`Loaded ${data.length} notifications for user`);
                 }
             }
         } catch (error) {
-            console.warn('Error loading user notifications:', error);
+            window.Logger?.warn('Error loading user notifications:', error);
         }
     }
 

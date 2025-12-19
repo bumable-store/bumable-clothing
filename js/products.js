@@ -6,12 +6,27 @@ class ProductManager {
         this.products = [];
         this.loading = true;
         this.initialized = false;
+        this.cacheTTL = 10 * 60 * 1000; // 10 minutes
         
         // Initialize products from Supabase
         this.init();
     }
 
     async init() {
+        window.Logger?.time('Product loading');
+        
+        // Try to get from cache first
+        const cachedProducts = window.CacheManager?.get('products');
+        if (cachedProducts && cachedProducts.length > 0) {
+            this.products = cachedProducts;
+            this.loading = false;
+            this.initialized = true;
+            window.Logger?.success(`Loaded ${this.products.length} products from cache`);
+            window.Logger?.timeEnd('Product loading');
+            return;
+        }
+
+        // If not in cache, fetch from Supabase
         if (window.supabaseDB && window.supabaseDB.client) {
             try {
                 this.loading = true;
@@ -32,25 +47,31 @@ class ProductManager {
                         stockCount: p.stock_count,
                         availableSizes: p.available_sizes
                     }));
-                    console.log(`✅ Loaded ${this.products.length} products from Supabase`);
+                    
+                    // Cache the products
+                    window.CacheManager?.set('products', this.products, this.cacheTTL);
+                    
+                    window.Logger?.success(`Loaded ${this.products.length} products from Supabase`);
                 } else {
                     // Fallback to default products if database is empty
-                    console.warn('⚠️ No products found in database, using defaults');
+                    window.Logger?.warn('No products found in database, using defaults');
                     this.products = this.getThe12Products();
                 }
             } catch (error) {
-                console.error('❌ Error loading products from Supabase:', error);
+                window.Logger?.error('Error loading products from Supabase:', error);
                 // Fallback to default products on error
                 this.products = this.getThe12Products();
             } finally {
                 this.loading = false;
                 this.initialized = true;
+                window.Logger?.timeEnd('Product loading');
             }
         } else {
-            console.warn('⚠️ Supabase not configured, using default products');
+            window.Logger?.warn('Supabase not configured, using default products');
             this.products = this.getThe12Products();
             this.loading = false;
             this.initialized = true;
+            window.Logger?.timeEnd('Product loading');
         }
     }
 

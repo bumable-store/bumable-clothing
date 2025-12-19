@@ -29,17 +29,17 @@ class UserAuthentication {
     loadCurrentSession() {
         try {
             if (!this.isSupabaseReady()) {
-                console.log('⚠️ Supabase not ready, skipping session load');
+                window.Logger?.log('⚠️ Supabase not ready, skipping session load');
                 return;
             }
 
             const sessionResult = window.supabaseDB.getCurrentSession();
             if (sessionResult.success) {
                 this.currentUser = sessionResult.session.user;
-                console.log('✅ Session restored from Supabase');
+                window.Logger?.log('✅ Session restored from Supabase');
             }
         } catch (error) {
-            console.error('Error loading session:', error);
+            window.Logger?.error('Error loading session:', error);
             this.logout();
         }
     }
@@ -655,7 +655,7 @@ class UserAuthentication {
             }
             
         } catch (error) {
-            console.error('Login error:', error);
+            window.Logger?.error('Login error:', error);
             this.showError('login', 'Login failed. Please try again.');
         }
     }
@@ -753,7 +753,7 @@ class UserAuthentication {
             }
             
         } catch (error) {
-            console.error('Registration error:', error);
+            window.Logger?.error('Registration error:', error);
             this.showError('register', 'Registration failed. Please try again.');
         }
     }
@@ -1288,7 +1288,7 @@ class UserAuthentication {
             const data = await response.json();
             return data.ip || 'Unknown';
         } catch (error) {
-            console.error('Error getting IP address:', error);
+            window.Logger?.error('Error getting IP address:', error);
             return 'Unknown';
         }
     }
@@ -1319,7 +1319,7 @@ class UserAuthentication {
             await window.supabaseDB.logUserActivity(activityData);
             
         } catch (error) {
-            console.error('Error logging activity:', error);
+            window.Logger?.error('Error logging activity:', error);
         }
     }
 
@@ -1334,7 +1334,7 @@ class UserAuthentication {
         // through the database methods: updateUserLogin, recordActivity, etc.
         if (window.supabaseDB && window.supabaseDB.isReady()) {
             window.supabaseDB.recordActivity(email, activity)
-                .catch(error => console.error('Failed to record activity:', error));
+                .catch(error => window.Logger?.error('Failed to record activity:', error));
         }
     }
 
@@ -1368,12 +1368,12 @@ window.authSystem = null;
 
 // Initialize authentication system
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🔐 Initializing authentication system...');
+    window.Logger?.log('🔐 Initializing authentication system...');
     try {
         window.authSystem = new UserAuthentication();
-        console.log('✅ Authentication system initialized successfully');
+        window.Logger?.log('✅ Authentication system initialized successfully');
     } catch (error) {
-        console.error('❌ Error initializing authentication system:', error);
+        window.Logger?.error('❌ Error initializing authentication system:', error);
     }
 });
 

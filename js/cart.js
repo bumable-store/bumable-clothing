@@ -61,7 +61,7 @@ class ShoppingCart {
                 this.loadGuestCart();
             }
         } catch (error) {
-            console.warn('Error loading cart:', error);
+            window.Logger?.warn('Error loading cart:', error);
             this.items = [];
         }
     }
@@ -83,7 +83,7 @@ class ShoppingCart {
                     .single();
 
                 if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-                    console.warn('Error loading user cart from Supabase:', error);
+                    window.Logger?.warn('Error loading user cart from Supabase:', error);
                     this.loadGuestCart();
                     return;
                 }
@@ -92,7 +92,7 @@ class ShoppingCart {
                     this.items = JSON.parse(data.cart_data);
                     this.calculateTotals();
                     this.updateDisplay();
-                    console.log('✅ User cart loaded from cloud');
+                    window.Logger?.log('✅ User cart loaded from cloud');
                     return;
                 }
             }
@@ -100,7 +100,7 @@ class ShoppingCart {
             // Fallback to guest cart if no cloud cart found
             this.loadGuestCart();
         } catch (error) {
-            console.warn('Error loading user cart:', error);
+            window.Logger?.warn('Error loading user cart:', error);
             this.loadGuestCart();
         }
     }
@@ -114,7 +114,7 @@ class ShoppingCart {
                 this.calculateTotals();
             }
         } catch (error) {
-            console.warn('Error loading guest cart:', error);
+            window.Logger?.warn('Error loading guest cart:', error);
             this.items = [];
         }
     }
@@ -130,7 +130,7 @@ class ShoppingCart {
                 this.saveGuestCart();
             }
         } catch (error) {
-            console.warn('Error saving cart:', error);
+            window.Logger?.warn('Error saving cart:', error);
             // Fallback to localStorage
             this.saveGuestCart();
         }
@@ -156,21 +156,21 @@ class ShoppingCart {
                     });
 
                 if (error) {
-                    console.warn('Error saving user cart to Supabase:', error);
+                    window.Logger?.warn('Error saving user cart to Supabase:', error);
                     this.saveGuestCart();
                 } else {
-                    console.log('✅ User cart saved to cloud');
+                    window.Logger?.log('✅ User cart saved to cloud');
                     // Don't save to localStorage for logged-in users - Supabase only
                     return;
                 }
             } else {
-                console.warn('⚠️ Supabase not configured - using localStorage fallback');
+                window.Logger?.warn('⚠️ Supabase not configured - using localStorage fallback');
             }
             
             // Fallback to localStorage only if Supabase fails
             this.saveGuestCart();
         } catch (error) {
-            console.warn('Error saving user cart:', error);
+            window.Logger?.warn('Error saving user cart:', error);
             this.saveGuestCart();
         }
     }
@@ -180,7 +180,7 @@ class ShoppingCart {
         try {
             localStorage.setItem('bumableCart', JSON.stringify(this.items));
         } catch (error) {
-            console.warn('Error saving guest cart:', error);
+            window.Logger?.warn('Error saving guest cart:', error);
         }
     }
 

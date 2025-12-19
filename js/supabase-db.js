@@ -15,7 +15,7 @@ class SupabaseDB {
         if (this.supabaseUrl && this.supabaseKey) {
             this.initializeSupabase();
         } else {
-            console.log('🔧 Supabase not configured. Visit /admin/setup-database.html to configure.');
+            window.Logger?.log('🔧 Supabase not configured. Visit /admin/setup-database.html to configure.');
         }
     }
 
@@ -39,9 +39,9 @@ class SupabaseDB {
             }
             
             this.connected = true;
-            console.log('✅ Supabase connected successfully (Cloud-only mode)');
+            window.Logger?.log('✅ Supabase connected successfully (Cloud-only mode)');
         } catch (error) {
-            console.error('❌ Supabase connection failed:', error);
+            window.Logger?.error('❌ Supabase connection failed:', error);
             this.connected = false;
         }
     }
@@ -64,7 +64,7 @@ class SupabaseDB {
      */
     async setupTables() {
         // Tables will be created via Supabase dashboard or SQL
-        console.log('📋 Database tables ready');
+        window.Logger?.log('📋 Database tables ready');
     }
 
     /**
@@ -113,10 +113,10 @@ class SupabaseDB {
 
             if (error) throw error;
             
-            console.log('✅ User registered successfully');
+            window.Logger?.log('✅ User registered successfully');
             return { success: true, user: data };
         } catch (error) {
-            console.error('❌ User registration failed:', error);
+            window.Logger?.error('❌ User registration failed:', error);
             return { success: false, error: error.message };
         }
     }
@@ -139,10 +139,10 @@ class SupabaseDB {
             // Log login activity
             await this.logUserActivity(data.id, 'login', 'User logged in');
             
-            console.log('✅ User logged in successfully');
+            window.Logger?.log('✅ User logged in successfully');
             return { success: true, user: data };
         } catch (error) {
-            console.error('❌ Login failed:', error);
+            window.Logger?.error('❌ Login failed:', error);
             return { success: false, error: error.message };
         }
     }
@@ -160,7 +160,7 @@ class SupabaseDB {
             if (error) throw error;
             return { success: true, users: data };
         } catch (error) {
-            console.error('❌ Failed to fetch users:', error);
+            window.Logger?.error('❌ Failed to fetch users:', error);
             return { success: false, error: error.message };
         }
     }
@@ -189,10 +189,10 @@ class SupabaseDB {
                 .single();
 
             if (error) throw error;
-            console.log('✅ Session created in Supabase');
+            window.Logger?.log('✅ Session created in Supabase');
             return { success: true, session: data };
         } catch (error) {
-            console.error('❌ Session creation failed:', error);
+            window.Logger?.error('❌ Session creation failed:', error);
             return { success: false, error: error.message };
         }
     }
@@ -206,7 +206,7 @@ class SupabaseDB {
             // For now, return success: false as we need to implement proper session handling
             return { success: false, message: 'Session retrieval not implemented' };
         } catch (error) {
-            console.error('❌ Session retrieval failed:', error);
+            window.Logger?.error('❌ Session retrieval failed:', error);
             return { success: false, error: error.message };
         }
     }
@@ -222,10 +222,10 @@ class SupabaseDB {
                 .eq('user_email', userEmail);
 
             if (error) throw error;
-            console.log('✅ Session deleted from Supabase');
+            window.Logger?.log('✅ Session deleted from Supabase');
             return { success: true };
         } catch (error) {
-            console.error('❌ Session deletion failed:', error);
+            window.Logger?.error('❌ Session deletion failed:', error);
             return { success: false, error: error.message };
         }
     }
@@ -282,10 +282,10 @@ class SupabaseDB {
 
             if (itemsError) throw itemsError;
 
-            console.log('✅ Order saved successfully');
+            window.Logger?.log('✅ Order saved successfully');
             return { success: true, order: order };
         } catch (error) {
-            console.error('❌ Order save failed:', error);
+            window.Logger?.error('❌ Order save failed:', error);
             return { success: false, error: error.message };
         }
     }
@@ -306,7 +306,7 @@ class SupabaseDB {
             if (error) throw error;
             return { success: true, orders: data };
         } catch (error) {
-            console.error('❌ Failed to fetch orders:', error);
+            window.Logger?.error('❌ Failed to fetch orders:', error);
             return { success: false, error: error.message };
         }
     }
@@ -328,10 +328,10 @@ class SupabaseDB {
 
             if (error) throw error;
             
-            console.log('✅ Order status updated');
+            window.Logger?.log('✅ Order status updated');
             return { success: true, order: data };
         } catch (error) {
-            console.error('❌ Order status update failed:', error);
+            window.Logger?.error('❌ Order status update failed:', error);
             return { success: false, error: error.message };
         }
     }
@@ -362,10 +362,10 @@ class SupabaseDB {
 
             if (error) throw error;
             
-            console.log('✅ Contact saved successfully');
+            window.Logger?.log('✅ Contact saved successfully');
             return { success: true, contact: data };
         } catch (error) {
-            console.error('❌ Contact save failed:', error);
+            window.Logger?.error('❌ Contact save failed:', error);
             return { success: false, error: error.message };
         }
     }
@@ -383,7 +383,7 @@ class SupabaseDB {
             if (error) throw error;
             return { success: true, contacts: data };
         } catch (error) {
-            console.error('❌ Failed to fetch contacts:', error);
+            window.Logger?.error('❌ Failed to fetch contacts:', error);
             return { success: false, error: error.message };
         }
     }
@@ -410,7 +410,7 @@ class SupabaseDB {
 
             if (error) throw error;
         } catch (error) {
-            console.error('Activity logging failed:', error);
+            window.Logger?.error('Activity logging failed:', error);
         }
     }
 
@@ -440,7 +440,7 @@ class SupabaseDB {
             if (error) throw error;
             return { success: true, activities: data || [] };
         } catch (error) {
-            console.error('❌ Failed to fetch user activities:', error);
+            window.Logger?.error('❌ Failed to fetch user activities:', error);
             return { success: false, error: error.message, activities: [] };
         }
     }
@@ -474,7 +474,7 @@ class SupabaseDB {
                 }
             };
         } catch (error) {
-            console.error('❌ Analytics fetch failed:', error);
+            window.Logger?.error('❌ Analytics fetch failed:', error);
             return { success: false, error: error.message };
         }
     }
@@ -501,7 +501,7 @@ class SupabaseDB {
                 products: data || []
             };
         } catch (error) {
-            console.error('Error fetching products:', error);
+            window.Logger?.error('Error fetching products:', error);
             return {
                 success: false,
                 error: error.message,
@@ -542,7 +542,7 @@ class SupabaseDB {
                 message: 'Product added successfully'
             };
         } catch (error) {
-            console.error('Error adding product:', error);
+            window.Logger?.error('Error adding product:', error);
             return {
                 success: false,
                 error: error.message
@@ -585,7 +585,7 @@ class SupabaseDB {
                 message: 'Product updated successfully'
             };
         } catch (error) {
-            console.error('Error updating product:', error);
+            window.Logger?.error('Error updating product:', error);
             return {
                 success: false,
                 error: error.message
@@ -611,7 +611,7 @@ class SupabaseDB {
                 message: 'Product deleted successfully'
             };
         } catch (error) {
-            console.error('Error deleting product:', error);
+            window.Logger?.error('Error deleting product:', error);
             return {
                 success: false,
                 error: error.message
@@ -645,7 +645,7 @@ class SupabaseDB {
                 message: 'Order deleted successfully'
             };
         } catch (error) {
-            console.error('Error deleting order:', error);
+            window.Logger?.error('Error deleting order:', error);
             return {
                 success: false,
                 error: error.message
@@ -670,7 +670,7 @@ class SupabaseDB {
                 message: 'User deleted successfully'
             };
         } catch (error) {
-            console.error('Error deleting user:', error);
+            window.Logger?.error('Error deleting user:', error);
             return {
                 success: false,
                 error: error.message
@@ -703,7 +703,7 @@ class SupabaseDB {
                 if (result.success) {
                     migratedProducts.push(result.product);
                 } else {
-                    console.warn(`Failed to migrate product ${product.id}:`, result.error);
+                    window.Logger?.warn(`Failed to migrate product ${product.id}:`, result.error);
                 }
             }
 
@@ -713,7 +713,7 @@ class SupabaseDB {
                 products: migratedProducts
             };
         } catch (error) {
-            console.error('Error migrating products:', error);
+            window.Logger?.error('Error migrating products:', error);
             return {
                 success: false,
                 error: error.message
@@ -742,7 +742,7 @@ class SupabaseDB {
                 orders: data || []
             };
         } catch (error) {
-            console.error('Error fetching orders:', error);
+            window.Logger?.error('Error fetching orders:', error);
             return {
                 success: false,
                 error: error.message,
@@ -768,7 +768,7 @@ class SupabaseDB {
                 users: data || []
             };
         } catch (error) {
-            console.error('Error fetching users:', error);
+            window.Logger?.error('Error fetching users:', error);
             return {
                 success: false,
                 error: error.message,
@@ -794,7 +794,7 @@ class SupabaseDB {
                 contacts: data || []
             };
         } catch (error) {
-            console.error('Error fetching contacts:', error);
+            window.Logger?.error('Error fetching contacts:', error);
             return {
                 success: false,
                 error: error.message,
@@ -841,7 +841,7 @@ class SupabaseDB {
             if (error) throw error;
             return data || [];
         } catch (error) {
-            console.error('Error fetching products:', error);
+            window.Logger?.error('Error fetching products:', error);
             return [];
         }
     }
@@ -860,7 +860,7 @@ class SupabaseDB {
             if (error) throw error;
             return data;
         } catch (error) {
-            console.error('Error fetching product:', error);
+            window.Logger?.error('Error fetching product:', error);
             return null;
         }
     }
@@ -880,7 +880,7 @@ class SupabaseDB {
             if (error) throw error;
             return data || [];
         } catch (error) {
-            console.error('Error fetching products by category:', error);
+            window.Logger?.error('Error fetching products by category:', error);
             return [];
         }
     }
@@ -920,7 +920,7 @@ class SupabaseDB {
             if (error) throw error;
             return { success: true, data: data[0] };
         } catch (error) {
-            console.error('Error updating product:', error);
+            window.Logger?.error('Error updating product:', error);
             return { success: false, error: error.message };
         }
     }
@@ -929,4 +929,4 @@ class SupabaseDB {
 // Initialize global Supabase database instance
 window.supabaseDB = new SupabaseDB();
 
-console.log('🚀 Supabase Database System Loaded');
+window.Logger?.log('🚀 Supabase Database System Loaded');

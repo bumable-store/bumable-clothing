@@ -1,22 +1,51 @@
 // BUMABLE Main JavaScript - Production Version
 
-// Auto-configure Supabase on first load
-function initSupabaseConfig() {
-    if (!localStorage.getItem('supabase_url')) {
-        localStorage.setItem('supabase_url', 'https://dovwxwqjsqgpsskwnqwc.supabase.co');
-        localStorage.setItem('supabase_key', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvdnd4d3Fqc3FncHNza3ducXdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU4MDQ0NzUsImV4cCI6MjA4MTM4MDQ3NX0.-mtkMmsMyKo01Zn0hxlNzuj-_p3JmWVbXz8_fJXtVaY');
-        console.log('✅ Supabase configuration initialized automatically');
+// DOM element cache for better performance
+const DOMCache = {
+    elements: new Map(),
+    get(selector) {
+        if (!this.elements.has(selector)) {
+            this.elements.set(selector, document.querySelector(selector));
+        }
+        return this.elements.get(selector);
+    },
+    getAll(selector) {
+        if (!this.elements.has(selector)) {
+            this.elements.set(selector, document.querySelectorAll(selector));
+        }
+        return this.elements.get(selector);
+    },
+    clear() {
+        this.elements.clear();
     }
+};
+
+// Check if Supabase is configured
+function initSupabaseConfig() {
+    const url = localStorage.getItem('supabase_url');
+    const key = localStorage.getItem('supabase_key');
+    
+    if (!url || !key) {
+        window.Logger?.warn('Supabase not configured. Please visit /admin/setup-database.html to configure your database.');
+        window.Logger?.warn('Some features may not work without database configuration.');
+        return false;
+    }
+    
+    window.Logger?.success('Supabase configuration found');
     
     // Initialize Supabase database
     if (!window.supabaseDB) {
         window.supabaseDB = new SupabaseDB();
-        console.log('✅ Supabase database initialized');
+        window.Logger?.success('Supabase database initialized');
     }
+    
+    return true;
 }
 
 // Initialize everything when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    window.Logger?.time('Page initialization');
+    
     // Initialize Supabase first
     initSupabaseConfig();
     
@@ -39,6 +68,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize admin sync listening
     initAdminSync();
+    
+    window.Logger?.timeEnd('Page initialization');
 });
 
 // Listen for admin changes and sync with main site (Updated for Supabase)
