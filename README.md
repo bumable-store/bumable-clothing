@@ -1,103 +1,110 @@
 # BUMABLE - E-commerce Underwear Store
 
-**Modern e-commerce website for men's underwear with cloud-powered admin dashboard**
+**Professional e-commerce website for men's underwear with cloud-powered features**
 
-🌐 **Live Site**: Coming Soon  
-☁️ **Backend**: Supabase Cloud Database  
-🔄 **Sync**: Real-time product synchronization across devices
+🌐 **Live Site**: [bumable-store.github.io/bumable-clothing](https://bumable-store.github.io/bumable-clothing)  
+☁️ **Backend**: Supabase (PostgreSQL)  
+🎨 **Design**: Modern, responsive, accessible
 
 ## 🚀 Features
 
-### Customer Features
-- **Product Catalog**: Browse tie-dye, solid, and sports underwear with live pricing
-- **Shopping Cart**: Add/remove items, quantity management
-- **Real-time Updates**: Product prices and stock sync across all devices
-- **Contact System**: Professional inquiry system with notifications
-- **Policy Pages**: Store policy, shipping & returns, FAQ
-- **Responsive Design**: Mobile-friendly interface
+### Customer Experience
+- Product catalog with real-time pricing
+- Shopping cart with Supabase cloud sync
+- User authentication & order tracking
+- Mobile-responsive design
+- WCAG 2.1 accessible
+- SEO optimized with Open Graph & Schema.org
 
-### Admin Features
-- **Cloud Dashboard**: Customer statistics and analytics powered by Supabase
-- **Product Management**: Update products - changes sync across all devices instantly
-- **Order Management**: View and update order status in real-time
-- **Contact Management**: Reply to customer inquiries
-- **Export Functions**: Download order data as CSV
-- **Database Security**: Row Level Security (RLS) enabled for all tables
-- **Real-time Sync**: Product updates appear on all devices after page refresh
+### Admin Dashboard
+- Cloud-based product management
+- Order & customer analytics
+- Real-time inventory updates
+- Secure authentication with RLS policies
 
-## 📁 Project Structure
+### Professional E-commerce
+- Google Analytics 4 & Facebook Pixel tracking
+- GDPR-compliant cookie consent
+- Comprehensive Privacy Policy & Terms
+- Online/offline detection
+- Enhanced error handling with user-friendly notifications
 
-```
-├── index.html              # Main homepage
-├── shop/
-│   └── index.html         # Product catalog with Supabase integration
-├── admin/
-│   ├── index.html         # Admin control panel
-│   ├── setup-database.html # Supabase configuration
-│   ├── setup-products-table.sql # Database setup script
-│   ├── PRODUCT-SYNC-SETUP.md # Product sync documentation
-│   └── supabase-schema.sql # Complete database schema
-├── css/
-│   ├── style.css          # Main styles
-│   └── responsive.css     # Mobile responsive styles
-├── js/
-│   ├── main.js            # Core functionality
-│   ├── cart.js            # Shopping cart logic
-│   ├── products.js        # Product manager (Supabase-backed)
-│   ├── supabase-db.js     # Supabase database integration
-│   ├── auth.js            # Authentication
-│   └── notifications.js   # Notification system
-├── images/
-│   ├── hero-product-1.jpg
-│   ├── hero-product-2.jpg
-│   ├── trunk-treasure.jpg
-│   └── products/          # Product images organized by category
-│       ├── solid/
-│       ├── tie-dye/
-│       └── sports/
-├── checkout/
-│   └── index.html         # Order processing
-├── policy/
-│   └── index.html         # Terms and policies
-├── shipping/
-│   └── index.html         # Shipping information
-├── faq/
-│   └── index.html         # Frequently asked questions
-└── success/
-    └── index.html         # Order confirmation
-```
+## 📁 Quick Start
 
-## 🛠️ Technologies Used
-
-- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
-- **Backend**: Supabase (PostgreSQL database)
-- **Database**: 
-  - PostgreSQL with Row Level Security (RLS)
-  - Real-time product synchronization
-  - Secure data storage in cloud
-- **Storage**: localStorage for cart and preferences
-- **Styling**: Custom CSS with Flexbox/Grid
-- **Icons**: Font Awesome 6
-- **Fonts**: Google Fonts (Poppins)
-- **Security**: 
-  - RLS policies on all tables
-  - Optimized auth functions for performance
-  - SECURITY INVOKER views
-
-## 🔧 Setup & Installation
-
-### 1. Clone the Repository
+### Local Development
 ```bash
-git clone https://github.com/bumable-store/bumable-clothing.git
-cd bumable-clothing
-```
-
-### 2. Set Up Local Development Server
-```bash
-# Using Python (recommended)
+# Start server
 python3 -m http.server 8000
 
-# OR using Node.js
+# Open browser
+http://localhost:8000
+```
+
+### Admin Setup
+1. Visit `/admin/setup-database.html`
+2. Enter Supabase credentials
+3. Run schema installation
+4. Configure products
+
+## 🛠️ Tech Stack
+
+**Frontend**: HTML5, CSS3, JavaScript (ES6+)  
+**Backend**: Supabase (PostgreSQL with RLS)  
+**Analytics**: Google Analytics 4, Facebook Pixel  
+**Fonts**: Google Fonts (Poppins)  
+**Icons**: Font Awesome 6
+
+## � Project Structure
+
+```
+├── index.html              # Homepage
+├── shop/                   # Product catalog
+├── checkout/               # Order processing
+├── admin/                  # Admin dashboard
+├── js/                     # JavaScript modules
+│   ├── cart.js            # Shopping cart
+│   ├── products.js        # Product manager
+│   ├── supabase-db.js     # Database client
+│   ├── auth.js            # Authentication
+│   ├── analytics.js       # GA4 & FB Pixel
+│   ├── accessibility.js   # A11y features
+│   └── error-handler.js   # Error management
+├── css/                    # Stylesheets
+├── images/                 # Product images
+└── privacy-policy/         # Legal pages
+```
+
+## � Security
+
+- Row Level Security (RLS) on all tables
+- Secure authentication with Supabase
+- HTTPS-only cookie policy
+- XSS & CSRF protection
+
+## 📱 Accessibility
+
+- ARIA labels on all interactive elements
+- Keyboard navigation support
+- Screen reader announcements
+- Focus management
+- Skip-to-content links
+- WCAG 2.1 Level AA compliant
+
+## � Analytics
+
+- Product view tracking
+- Add-to-cart events
+- Checkout funnel
+- Purchase conversions
+- Custom event tracking
+
+## 📄 License
+
+All rights reserved © 2025 BUMABLE
+
+## 🤝 Contact
+
+For inquiries: ingeniumcouture@gmail.com
 npx http-server -p 8000
 ```
 

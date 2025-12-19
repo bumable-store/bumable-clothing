@@ -542,31 +542,31 @@
     </div>
 
     <!-- Product Preview Modal -->
-    <div class="product-modal" id="productModal">
+    <div class="product-modal" id="productModal" role="dialog" aria-modal="true" aria-labelledby="modalProductName" aria-hidden="true">
         <div class="modal-content">
-            <button class="modal-close" onclick="closeProductModal()">&times;</button>
+            <button class="modal-close" onclick="closeProductModal()" aria-label="Close product details">&times;</button>
             <div class="modal-body">
                 <div class="modal-image-section">
-                    <div class="modal-main-image" id="modalMainImage"></div>
-                    <div class="modal-thumbnails" id="modalThumbnails">
+                    <div class="modal-main-image" id="modalMainImage" role="img" aria-label="Product image"></div>
+                    <div class="modal-thumbnails" id="modalThumbnails" role="list" aria-label="Product image thumbnails">
                         <!-- Thumbnails will be loaded here -->
                     </div>
                 </div>
                 <div class="modal-details-section">
                     <h1 class="modal-product-name" id="modalProductName"></h1>
-                    <div class="modal-product-price" id="modalProductPrice"></div>
+                    <div class="modal-product-price" id="modalProductPrice" aria-live="polite"></div>
                     <div class="modal-description" id="modalProductDescription"></div>
                     
                     <div class="modal-size-selection">
                         <label for="modalSizeSelector">SIZE:</label>
-                        <div class="size-options-grid">
-                            <div class="size-option" data-size="S">S</div>
-                            <div class="size-option" data-size="M">M</div>
-                            <div class="size-option" data-size="L">L</div>
-                            <div class="size-option" data-size="XL">XL</div>
-                            <div class="size-option" data-size="XXL">XXL</div>
+                        <div class="size-options-grid" role="group" aria-label="Select size">
+                            <div class="size-option" data-size="S" role="button" tabindex="0" aria-label="Size Small">S</div>
+                            <div class="size-option" data-size="M" role="button" tabindex="0" aria-label="Size Medium">M</div>
+                            <div class="size-option" data-size="L" role="button" tabindex="0" aria-label="Size Large">L</div>
+                            <div class="size-option" data-size="XL" role="button" tabindex="0" aria-label="Size Extra Large">XL</div>
+                            <div class="size-option" data-size="XXL" role="button" tabindex="0" aria-label="Size Double Extra Large">XXL</div>
                         </div>
-                        <select id="modalSizeSelector" class="modal-size-selector" required>
+                        <select id="modalSizeSelector" class="modal-size-selector" required aria-required="true">
                             <option value="">Choose Size</option>
                         </select>
                     </div>
@@ -598,6 +598,8 @@
     <script src="js/logger.js?v=20251219b"></script>
     <script src="js/cache.js?v=20251219b"></script>
     <script src="js/lazy-load.js?v=20251219b"></script>
+    <script src="js/accessibility.js?v=20251219d"></script>
+    <script src="js/error-handler.js?v=20251219d"></script>
     <script src="js/security.js?v=20251219a"></script>
     <script src="js/cookie-consent.js?v=20251219c"></script>
     <script src="js/analytics.js?v=20251219c"></script>
@@ -709,8 +711,13 @@
             modal.style.display = 'flex';
             setTimeout(() => modal.classList.add('show'), 10);
             
-            // Prevent body scroll
-            document.body.style.overflow = 'hidden';
+            // ♿ ACCESSIBILITY: Open modal with focus management
+            if (window.a11y) {
+                window.a11y.openModal(modal);
+            } else {
+                // Fallback: Prevent body scroll
+                document.body.style.overflow = 'hidden';
+            }
         }
         
         // Size selection function
@@ -735,9 +742,17 @@
         function closeProductModal() {
             const modal = document.getElementById('productModal');
             modal.classList.remove('show');
+            
+            // ♿ ACCESSIBILITY: Close modal with focus restoration
+            if (window.a11y) {
+                window.a11y.closeModal(modal);
+            }
+            
             setTimeout(() => {
                 modal.style.display = 'none';
-                document.body.style.overflow = 'auto';
+                if (!window.a11y) {
+                    document.body.style.overflow = 'auto';
+                }
             }, 300);
         }
         
