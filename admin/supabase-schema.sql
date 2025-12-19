@@ -135,13 +135,18 @@ CREATE INDEX IF NOT EXISTS idx_user_activities_email ON user_activities(user_ema
 CREATE INDEX IF NOT EXISTS idx_product_views_product ON product_views(product_name);
 
 -- Create auto-update function for updated_at timestamp
+-- Fixed with search_path for security (Supabase linter recommendation)
 CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
 BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$;
 
 -- Apply auto-update trigger to orders table
 CREATE TRIGGER update_orders_updated_at 
