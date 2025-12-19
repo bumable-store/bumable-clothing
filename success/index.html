@@ -409,19 +409,13 @@
         });
 
         function loadOrderDetails() {
-            // Get the most recent order from localStorage
-            const recentOrder = localStorage.getItem('bumableRecentOrder');
+            // Get the most recent order from sessionStorage (temporary data)
+            const recentOrder = sessionStorage.getItem('bumableRecentOrder');
             
             if (!recentOrder) {
-                // Fallback to checkout data if recent order not found
-                const checkoutData = localStorage.getItem('checkoutCart');
-                if (checkoutData) {
-                    const data = JSON.parse(checkoutData);
-                    displayOrderDetails(data);
-                } else {
-                    // Redirect to shop if no order data
-                    window.location.href = 'shop.html';
-                }
+                // No order data found - redirect to shop
+                alert('No order details found.');
+                window.location.href = '../shop/index.html';
                 return;
             }
 
@@ -508,8 +502,7 @@
 
         // Clear order data after 5 minutes (optional)
         setTimeout(() => {
-            localStorage.removeItem('bumableRecentOrder');
-            localStorage.removeItem('checkoutCart');
+            sessionStorage.removeItem('bumableRecentOrder');
         }, 5 * 60 * 1000);
 
         // Notifications functionality
@@ -520,22 +513,15 @@
 
         // Print order summary function
         function printOrderSummary() {
-            // Get the recent order data
-            const recentOrder = localStorage.getItem('bumableRecentOrder');
-            let orderData = null;
+            // Get the recent order data from sessionStorage
+            const recentOrder = sessionStorage.getItem('bumableRecentOrder');
             
-            if (recentOrder) {
-                orderData = JSON.parse(recentOrder);
-            } else {
-                // Fallback to checkout data
-                const checkoutData = localStorage.getItem('checkoutCart');
-                if (checkoutData) {
-                    orderData = JSON.parse(checkoutData);
-                } else {
-                    alert('No order data found to print!');
-                    return;
-                }
+            if (!recentOrder) {
+                alert('No order data found to print!');
+                return;
             }
+            
+            const orderData = JSON.parse(recentOrder);
 
             // Create print window
             const printWindow = window.open('', '_blank', 'width=800,height=1000');

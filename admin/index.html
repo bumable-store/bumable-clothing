@@ -3584,7 +3584,7 @@ Order Date: ${new Date(order.orderDate).toLocaleString('en-IN')}`);
         }
 
         // Update order status
-        function updateOrderStatus(orderId) {
+        async function updateOrderStatus(orderId) {
             const order = allAdminOrders.find(o => o.orderId === orderId);
             if (!order) return;
 
@@ -3595,20 +3595,24 @@ Current Status: ${order.status || 'Confirmed'}
 Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.status || 'confirmed');
 
             if (newStatus && ['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].includes(newStatus.toLowerCase())) {
-                order.status = newStatus.toLowerCase();
-                
-                // Save updated orders
-                localStorage.setItem('bumableOrders', JSON.stringify(allAdminOrders));
-                
-                // Refresh display
-                loadAdminData();
-                
-                alert(`Order ${orderId} status updated to: ${newStatus}`);
+                // Update in Supabase
+                if (window.supabaseDB && window.supabaseDB.isReady()) {
+                    const result = await window.supabaseDB.updateOrderStatus(order.id, newStatus.toLowerCase());
+                    if (result.success) {
+                        alert(`Order ${orderId} status updated to: ${newStatus}`);
+                        // Refresh display from Supabase
+                        await loadAdminData();
+                    } else {
+                        alert(`Failed to update order status: ${result.error}`);
+                    }
+                } else {
+                    alert('Database not connected. Please check Supabase configuration.');
+                }
             }
         }
 
         // Update order status to specific status (from dropdown)
-        function updateOrderStatusTo(orderId, newStatus) {
+        async function updateOrderStatusTo(orderId, newStatus) {
             const order = allAdminOrders.find(o => o.orderId === orderId);
             if (!order) return;
 
@@ -3622,15 +3626,19 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             };
 
             if (confirm(`Change order ${orderId} status to "${statusLabels[newStatus]}"?`)) {
-                order.status = newStatus;
-                
-                // Save updated orders
-                localStorage.setItem('bumableOrders', JSON.stringify(allAdminOrders));
-                
-                // Refresh display
-                loadAdminData();
-                
-                alert(`Order ${orderId} status updated to: ${statusLabels[newStatus]}`);
+                // Update in Supabase
+                if (window.supabaseDB && window.supabaseDB.isReady()) {
+                    const result = await window.supabaseDB.updateOrderStatus(order.id, newStatus);
+                    if (result.success) {
+                        alert(`Order ${orderId} status updated to: ${statusLabels[newStatus]}`);
+                        // Refresh display from Supabase
+                        await loadAdminData();
+                    } else {
+                        alert(`Failed to update order status: ${result.error}`);
+                    }
+                } else {
+                    alert('Database not connected. Please check Supabase configuration.');
+                }
             }
 
             // Close any open dropdowns
@@ -3640,14 +3648,23 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
         }
 
         // Cancel order
-        function cancelOrder(orderId) {
+        async function cancelOrder(orderId) {
             if (confirm(`Are you sure you want to cancel order ${orderId}?`)) {
                 const order = allAdminOrders.find(o => o.orderId === orderId);
                 if (order) {
-                    order.status = 'cancelled';
-                    localStorage.setItem('bumableOrders', JSON.stringify(allAdminOrders));
-                    loadAdminData();
-                    alert(`Order ${orderId} has been cancelled.`);
+                    // Update in Supabase
+                    if (window.supabaseDB && window.supabaseDB.isReady()) {
+                        const result = await window.supabaseDB.updateOrderStatus(order.id, 'cancelled');
+                        if (result.success) {
+                            alert(`Order ${orderId} has been cancelled.`);
+                            // Refresh display from Supabase
+                            await loadAdminData();
+                        } else {
+                            alert(`Failed to cancel order: ${result.error}`);
+                        }
+                    } else {
+                        alert('Database not connected. Please check Supabase configuration.');
+                    }
                 }
             }
         }
@@ -5087,10 +5104,10 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
         }
 
         // Export products data
-        function adminExportProducts() {
+        async function adminExportProducts() {
             if (!window.productManager) return;
             
-            const products = window.productManager.getAllProducts();
+            const products = await window.productManager.getAllProducts();
             const dataStr = JSON.stringify(products, null, 2);
             const blob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -5107,7 +5124,7 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
         }
 
         // Manual sync function for testing
-        function forceSyncProducts() {
+        async function forceSyncProducts() {
             console.log('Force syncing products...');
             
             // Check if ProductManager exists
@@ -5119,16 +5136,17 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             
             // Reinitialize product manager
             window.productManager = new ProductManager();
+            await window.productManager.init();
             console.log('Product manager reinitialized');
-            console.log('Products found:', window.productManager.getAllProducts().length);
+            const products = await window.productManager.getAllProducts();
+            console.log('Products found:', products.length);
             
             // Update displays
             updateProductStats();
             loadAdminProducts();
             
-            // Update main site by triggering storage event
-            const products = window.productManager.getAllProducts();
-            localStorage.setItem('bumable_products', JSON.stringify(products));
+            // Products are now managed entirely in Supabase - no localStorage cache needed
+            console.log(`✅ Products synchronized successfully! Found ${products.length} products in Supabase.`);
             
             alert(`Products synchronized successfully! Found ${products.length} products.`);
         }
@@ -5253,7 +5271,7 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                 console.log('Processed customers:', customers.length);
                 
                 // Update customer stats and display
-                updateCustomerStats(customers);
+                await updateCustomerStats(customers);
                 displayCustomers(customers);
                 
             } catch (error) {
@@ -5261,111 +5279,123 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                 displayCustomers([]);
             }
         }
-            
-            // Display customers
-            displayCustomers(customers);
         
         // Update customer statistics
-        function updateCustomerStats(customers) {
-            // Get contact queries to include in customer count
-            const contactQueries = JSON.parse(localStorage.getItem('bumableContactQueries') || '[]');
-            
-            // Get login activity data for recent activity tracking
-            const loginHistory = JSON.parse(localStorage.getItem('bumableLoginHistory') || '[]');
-            
-            // Separate registered and guest customers
-            const registeredCustomers = customers.filter(c => c.isRegistered);
-            const guestCustomers = customers.filter(c => !c.isRegistered);
-            
-            // Get unique customers from contact queries
-            const uniqueContactEmails = [...new Set(contactQueries.map(q => q.email))];
-            const contactCustomers = uniqueContactEmails.length;
-            
-            // Calculate totals
-            const totalCustomers = customers.length + Math.max(0, contactCustomers - customers.filter(c => c.email !== 'N/A').length);
-            const totalRegistered = registeredCustomers.length;
-            const totalGuests = guestCustomers.length;
-            const totalOrders = customers.reduce((sum, c) => sum + c.orders, 0);
-            const totalValue = customers.reduce((sum, c) => sum + c.totalSpent, 0);
-            
-            // Calculate recent activity (last 7 days)
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-            
-            const recentLogins = loginHistory.filter(activity => 
-                new Date(activity.timestamp) > sevenDaysAgo && 
-                activity.activity === 'successful_login'
-            ).length;
-            
-            const recentRegistrations = registeredCustomers.filter(customer => 
-                customer.registrationDate && new Date(customer.registrationDate) > sevenDaysAgo
-            ).length;
-            
-            // Calculate new customers this month (including contact queries and registrations)
-            const currentMonth = new Date().getMonth();
-            const currentYear = new Date().getFullYear();
-            
-            // New registrations this month
-            const newRegistrations = registeredCustomers.filter(customer => {
-                if (!customer.registrationDate) return false;
-                const regDate = new Date(customer.registrationDate);
-                return regDate.getMonth() === currentMonth && regDate.getFullYear() === currentYear;
-            }).length;
-            
-            // New order customers this month
-            const newOrderCustomers = customers.filter(customer => {
-                if (!customer.firstOrder) return false;
-                const firstOrder = new Date(customer.firstOrder);
-                return firstOrder.getMonth() === currentMonth && firstOrder.getFullYear() === currentYear;
-            }).length;
-            
-            // New contact customers this month
-            const newContactCustomers = contactQueries.filter(query => {
-                const queryDate = new Date(query.timestamp);
-                return queryDate.getMonth() === currentMonth && queryDate.getFullYear() === currentYear;
-            }).length;
-            
-            const newCustomers = Math.max(newRegistrations, newOrderCustomers, newContactCustomers);
-            
-            // Update UI with enhanced customer stats
-            document.getElementById('customers-total').textContent = totalCustomers;
-            document.getElementById('customers-new').textContent = newCustomers;
-            
-            // Update additional customer metrics if elements exist
-            const registeredCountEl = document.getElementById('customers-registered');
-            const guestsCountEl = document.getElementById('customers-guests');
-            const recentLoginsEl = document.getElementById('recent-logins');
-            const recentRegEl = document.getElementById('recent-registrations');
-            
-            if (registeredCountEl) registeredCountEl.textContent = totalRegistered;
-            if (guestsCountEl) guestsCountEl.textContent = totalGuests;
-            if (recentLoginsEl) recentLoginsEl.textContent = recentLogins;
-            if (recentRegEl) recentRegEl.textContent = recentRegistrations;
-            document.getElementById('customers-orders').textContent = totalOrders;
-            document.getElementById('customers-value').textContent = `₹${totalValue.toLocaleString('en-IN')}`;
+        async function updateCustomerStats(customers) {
+            try {
+                // Get contact queries from Supabase
+                let contactCustomers = 0;
+                let recentRegistrations = 0;
+                let newContactCustomers = 0;
+                
+                if (window.supabaseDB && window.supabaseDB.isReady()) {
+                    const contactsResult = await window.supabaseDB.getAllContacts();
+                    if (contactsResult.success) {
+                        const uniqueContactEmails = [...new Set(contactsResult.contacts.map(q => q.email))];
+                        contactCustomers = uniqueContactEmails.length;
+                        
+                        // Calculate new contact customers this month
+                        const currentMonth = new Date().getMonth();
+                        const currentYear = new Date().getFullYear();
+                        newContactCustomers = contactsResult.contacts.filter(query => {
+                            const queryDate = new Date(query.created_at || query.timestamp);
+                            return queryDate.getMonth() === currentMonth && queryDate.getFullYear() === currentYear;
+                        }).length;
+                    }
+                }
+                
+                // Separate registered and guest customers
+                const registeredCustomers = customers.filter(c => c.isRegistered);
+                const guestCustomers = customers.filter(c => !c.isRegistered);
+                
+                // Calculate totals
+                const totalCustomers = customers.length + Math.max(0, contactCustomers - customers.filter(c => c.email !== 'N/A').length);
+                const totalRegistered = registeredCustomers.length;
+                const totalGuests = guestCustomers.length;
+                const totalOrders = customers.reduce((sum, c) => sum + c.orders, 0);
+                const totalValue = customers.reduce((sum, c) => sum + c.totalSpent, 0);
+                
+                // Calculate recent registrations (last 7 days)
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                
+                recentRegistrations = registeredCustomers.filter(customer => 
+                    customer.registrationDate && new Date(customer.registrationDate) > sevenDaysAgo
+                ).length;
+                
+                // Calculate new customers this month
+                const currentMonth = new Date().getMonth();
+                const currentYear = new Date().getFullYear();
+                
+                // New registrations this month
+                const newRegistrations = registeredCustomers.filter(customer => {
+                    if (!customer.registrationDate) return false;
+                    const regDate = new Date(customer.registrationDate);
+                    return regDate.getMonth() === currentMonth && regDate.getFullYear() === currentYear;
+                }).length;
+                
+                // New order customers this month
+                const newOrderCustomers = customers.filter(customer => {
+                    if (!customer.firstOrder) return false;
+                    const firstOrder = new Date(customer.firstOrder);
+                    return firstOrder.getMonth() === currentMonth && firstOrder.getFullYear() === currentYear;
+                }).length;
+                
+                const newCustomers = Math.max(newRegistrations, newOrderCustomers, newContactCustomers);
+                
+                // Update UI with enhanced customer stats
+                document.getElementById('customers-total').textContent = totalCustomers;
+                document.getElementById('customers-new').textContent = newCustomers;
+                
+                // Update additional customer metrics if elements exist
+                const registeredCountEl = document.getElementById('customers-registered');
+                const guestsCountEl = document.getElementById('customers-guests');
+                const recentLoginsEl = document.getElementById('recent-logins');
+                const recentRegEl = document.getElementById('recent-registrations');
+                
+                if (registeredCountEl) registeredCountEl.textContent = totalRegistered;
+                if (guestsCountEl) guestsCountEl.textContent = totalGuests;
+                if (recentLoginsEl) recentLoginsEl.textContent = customers.reduce((sum, c) => sum + (c.loginCount || 0), 0);
+                if (recentRegEl) recentRegEl.textContent = recentRegistrations;
+                document.getElementById('customers-orders').textContent = totalOrders;
+                document.getElementById('customers-value').textContent = `₹${totalValue.toLocaleString('en-IN')}`;
+            } catch (error) {
+                console.error('Error updating customer stats:', error);
+            }
         }
 
         // Update contact queries statistics
-        function updateQueriesStats() {
-            const queries = JSON.parse(localStorage.getItem('bumableContactQueries') || '[]');
-            
-            // Calculate stats
-            const totalQueries = queries.length;
-            const pendingQueries = queries.filter(q => q.status === 'new').length;
-            const repliedQueries = queries.filter(q => q.status === 'replied').length;
-            
-            // Calculate queries today
-            const today = new Date();
-            const todayQueries = queries.filter(query => {
-                const queryDate = new Date(query.timestamp);
-                return queryDate.toDateString() === today.toDateString();
-            }).length;
-            
-            // Update UI
-            document.getElementById('queries-total').textContent = totalQueries;
-            document.getElementById('queries-pending').textContent = pendingQueries;
-            document.getElementById('queries-replied').textContent = repliedQueries;
-            document.getElementById('queries-today').textContent = todayQueries;
+        async function updateQueriesStats() {
+            try {
+                let queries = [];
+                
+                if (window.supabaseDB && window.supabaseDB.isReady()) {
+                    const result = await window.supabaseDB.getAllContacts();
+                    if (result.success) {
+                        queries = result.contacts;
+                    }
+                }
+                
+                // Calculate stats
+                const totalQueries = queries.length;
+                const pendingQueries = queries.filter(q => q.status === 'new' || q.status === 'pending').length;
+                const repliedQueries = queries.filter(q => q.status === 'replied' || q.status === 'resolved').length;
+                
+                // Calculate queries today
+                const today = new Date();
+                const todayQueries = queries.filter(query => {
+                    const queryDate = new Date(query.created_at || query.timestamp);
+                    return queryDate.toDateString() === today.toDateString();
+                }).length;
+                
+                // Update UI
+                document.getElementById('queries-total').textContent = totalQueries;
+                document.getElementById('queries-pending').textContent = pendingQueries;
+                document.getElementById('queries-replied').textContent = repliedQueries;
+                document.getElementById('queries-today').textContent = todayQueries;
+            } catch (error) {
+                console.error('Error updating queries stats:', error);
+            }
         }
         
         // Display customers in table
@@ -5478,72 +5508,38 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             }).join('');
         }
         
-        // View customer details
+        // View customer details (deprecated - data now in Supabase)
         function viewCustomerDetails(customerId) {
-            const orders = JSON.parse(localStorage.getItem('bumableOrders')) || [];
-            const customerOrders = orders.filter(order => 
-                (order.email || order.phone || order.orderId) === customerId
-            );
-            
-            if (customerOrders.length === 0) {
-                alert('No customer data found.');
-                return;
-            }
-            
-            const customer = customerOrders[0];
-            const totalSpent = customerOrders.reduce((sum, order) => sum + (order.total || 0), 0);
-            const totalOrders = customerOrders.length;
-            const firstOrder = Math.min(...customerOrders.map(o => new Date(o.orderDate)));
-            const lastOrder = Math.max(...customerOrders.map(o => new Date(o.orderDate)));
-            
-            alert(`Customer Details:
-            
-Name: ${customer.firstName || ''} ${customer.lastName || ''}
-Email: ${customer.email || 'N/A'}
-Phone: ${customer.phone || 'N/A'}
-Address: ${customer.address || 'N/A'}
-
-Order Summary:
-Total Orders: ${totalOrders}
-Total Spent: ₹${totalSpent.toLocaleString('en-IN')}
-First Order: ${new Date(firstOrder).toLocaleDateString('en-IN')}
-Last Order: ${new Date(lastOrder).toLocaleDateString('en-IN')}
-Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
+            alert('Customer details are now managed in Supabase. Please view customer orders through the Customers section.');
         }
         
-        // Toggle customer account status
+        // Toggle customer account status (deprecated)
         function toggleCustomerStatus(customerId) {
-            const users = JSON.parse(localStorage.getItem('bumableUsers') || '[]');
-            const userIndex = users.findIndex(user => user.id === customerId);
-            
-            if (userIndex === -1) {
-                alert('User not found.');
-                return;
-            }
-            
-            const user = users[userIndex];
-            const action = user.isActive ? 'deactivate' : 'activate';
-            
-            if (confirm(`Are you sure you want to ${action} ${user.firstname} ${user.lastname}'s account?`)) {
-                user.isActive = !user.isActive;
-                users[userIndex] = user;
-                
-                // Save updated users
-                localStorage.setItem('bumableUsers', JSON.stringify(users));
-                
-                // Show notification
-                alert(`Account ${action}d successfully.`);
-                
-                // Refresh customers display
-                loadCustomersData();
-            }
+            alert('User status management is now handled through the Supabase database.');
+        }
+        
+        // Toggle user active status (deprecated - managed in Supabase)
+        async function toggleUserStatus(customerId) {
+            alert('User status management is now handled through the Supabase database. Please use the Supabase dashboard to manage user accounts.');
+            // This function would need to be implemented with proper Supabase user management
+            // For now, it's disabled to prevent localStorage usage
         }
         
         // View customer orders
-        function viewCustomerOrders(customerId) {
-            const orders = JSON.parse(localStorage.getItem('bumableOrders')) || [];
-            const customerOrders = orders.filter(order => 
-                (order.email || order.phone || order.orderId) === customerId
+        async function viewCustomerOrders(customerId) {
+            if (!window.supabaseDB || !window.supabaseDB.isReady()) {
+                alert('Database not connected.');
+                return;
+            }
+            
+            const result = await window.supabaseDB.getAllOrders();
+            if (!result.success) {
+                alert('Failed to load orders.');
+                return;
+            }
+            
+            const customerOrders = result.orders.filter(order => 
+                order.customer_email === customerId || order.id === customerId
             );
             
             if (customerOrders.length === 0) {
@@ -5552,9 +5548,9 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
             }
             
             const ordersList = customerOrders.map(order => {
-                const orderDate = new Date(order.orderDate).toLocaleDateString('en-IN');
+                const orderDate = new Date(order.created_at || order.orderDate).toLocaleDateString('en-IN');
                 const itemCount = order.items ? order.items.length : 0;
-                return `• Order ${order.orderId} - ${orderDate} - ${itemCount} items - ₹${(order.total || 0).toLocaleString('en-IN')}`;
+                return `• Order ${order.order_number || order.orderId} - ${orderDate} - ${itemCount} items - ₹${(order.total_amount || order.total || 0).toLocaleString('en-IN')}`;
             }).join('\n');
             
             alert(`Customer Orders:\n\n${ordersList}`);
@@ -5563,25 +5559,22 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
         // View customer device and login history
         async function viewDeviceHistory(customerId) {
             try {
-                // Get user activities from Supabase
-                const { data: activities, error } = await supabase
-                    .from('user_activities')
-                    .select('*')
-                    .or(`email.eq.${customerId},phone.eq.${customerId}`)
-                    .order('created_at', { ascending: false })
-                    .limit(10);
-                
-                if (error) {
-                    console.error('Error fetching activities:', error);
+                if (!window.supabaseDB || !window.supabaseDB.isReady()) {
+                    alert('Database not connected.');
+                    return;
                 }
                 
-                // Also check localStorage for any stored customer data
-                const orders = JSON.parse(localStorage.getItem('bumableOrders')) || [];
-                const customerOrders = orders.filter(order => 
-                    (order.email || order.phone || order.orderId) === customerId
-                );
+                // Get user activities from Supabase
+                const result = await window.supabaseDB.getAllUserActivities();
                 
-                if ((!activities || activities.length === 0) && customerOrders.length === 0) {
+                let activities = [];
+                if (result.success) {
+                    activities = result.activities.filter(activity => 
+                        activity.user_email === customerId || activity.user_id === customerId
+                    ).slice(0, 10);
+                }
+                
+                if (activities.length === 0) {
                     alert('No device or login history found for this customer.');
                     return;
                 }
@@ -5703,57 +5696,64 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
         }
         
         // Export customers data
-        function exportCustomersData() {
-            const orders = JSON.parse(localStorage.getItem('bumableOrders')) || [];
-            
-            if (orders.length === 0) {
-                alert('No customer data to export.');
+        async function exportCustomersData() {
+            if (!window.supabaseDB || !window.supabaseDB.isReady()) {
+                alert('Database not connected. Cannot export customers.');
                 return;
             }
             
-            // Create CSV content
-            const csvHeaders = ['Customer Name', 'Email', 'Phone', 'Device Info', 'Orders Count', 'Total Spent', 'First Order', 'Last Order'];
-            const customerMap = {};
-            
-            // Process orders to get customer data
-            orders.forEach(order => {
-                const customerId = order.email || order.phone || order.orderId;
-                const customerName = (order.firstName || '') + ' ' + (order.lastName || '');
+            try {
+                const orders = await window.supabaseDB.getAllOrders();
                 
-                if (!customerMap[customerId]) {
-                    customerMap[customerId] = {
-                        name: customerName.trim() || 'Guest Customer',
-                        email: order.email || 'N/A',
-                        phone: order.phone || 'N/A',
-                        orders: 0,
-                        totalSpent: 0,
-                        firstOrder: order.orderDate,
-                        lastOrder: order.orderDate
-                    };
+                if (orders.length === 0) {
+                    alert('No customer data to export.');
+                    return;
                 }
                 
-                customerMap[customerId].orders += 1;
-                customerMap[customerId].totalSpent += order.total || 0;
+                // Create CSV content
+                const csvHeaders = ['Customer Name', 'Email', 'Phone', 'Device Info', 'Orders Count', 'Total Spent', 'First Order', 'Last Order'];
+                const customerMap = {};
                 
-                if (new Date(order.orderDate) < new Date(customerMap[customerId].firstOrder)) {
-                    customerMap[customerId].firstOrder = order.orderDate;
-                }
-                if (new Date(order.orderDate) > new Date(customerMap[customerId].lastOrder)) {
-                    customerMap[customerId].lastOrder = order.orderDate;
-                }
-            });
-            
-            const customers = Object.values(customerMap);
-            
-            const csvData = customers.map(customer => [
-                customer.name,
-                customer.email,
-                customer.phone,
-                customer.orders,
-                customer.totalSpent,
-                new Date(customer.firstOrder).toLocaleDateString('en-IN'),
-                new Date(customer.lastOrder).toLocaleDateString('en-IN')
-            ]);
+                // Process orders to get customer data
+                orders.forEach(order => {
+                    const customerId = order.email || order.phone || order.orderId || order.order_id;
+                    const customerName = (order.firstName || order.first_name || '') + ' ' + (order.lastName || order.last_name || '');
+                    
+                    if (!customerMap[customerId]) {
+                        customerMap[customerId] = {
+                            name: customerName.trim() || 'Guest Customer',
+                            email: order.email || 'N/A',
+                            phone: order.phone || 'N/A',
+                            orders: 0,
+                            totalSpent: 0,
+                            firstOrder: order.orderDate || order.order_date,
+                            lastOrder: order.orderDate || order.order_date
+                        };
+                    }
+                    
+                    customerMap[customerId].orders += 1;
+                    customerMap[customerId].totalSpent += order.total || 0;
+                    
+                    const orderDate = order.orderDate || order.order_date;
+                    if (new Date(orderDate) < new Date(customerMap[customerId].firstOrder)) {
+                        customerMap[customerId].firstOrder = orderDate;
+                    }
+                    if (new Date(orderDate) > new Date(customerMap[customerId].lastOrder)) {
+                        customerMap[customerId].lastOrder = orderDate;
+                    }
+                });
+                
+                const customers = Object.values(customerMap);
+                
+                const csvData = customers.map(customer => [
+                    customer.name,
+                    customer.email,
+                    customer.phone,
+                    customer.orders,
+                    customer.totalSpent,
+                    new Date(customer.firstOrder).toLocaleDateString('en-IN'),
+                    new Date(customer.lastOrder).toLocaleDateString('en-IN')
+                ]);
             
             const csvContent = [csvHeaders, ...csvData]
                 .map(row => row.map(cell => `"${cell}"`).join(','))
@@ -5771,51 +5771,60 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
             window.URL.revokeObjectURL(url);
             
             alert('Customer data exported successfully!');
+            } catch (error) {
+                console.error('Error exporting customers:', error);
+                alert('Failed to export customer data. Please try again.');
+            }
         }
         
         // Export Orders Data to CSV
-        function exportOrdersData() {
-            const orders = JSON.parse(localStorage.getItem('bumableOrders')) || 
-                          JSON.parse(localStorage.getItem('orders')) || [];
-            
-            if (orders.length === 0) {
-                alert('No orders data to export.');
+        async function exportOrdersData() {
+            if (!window.supabaseDB || !window.supabaseDB.isReady()) {
+                alert('Database not connected. Cannot export orders.');
                 return;
             }
             
-            // Create CSV headers
-            const csvHeaders = [
-                'Order ID',
-                'Customer Name', 
-                'Email',
-                'Phone',
-                'Order Date',
-                'Status',
-                'Items',
-                'Total Amount',
-                'Payment Method',
-                'Address',
-                'City',
-                'State',
-                'Pincode'
-            ];
-            
-            // Process orders data
-            const csvData = orders.map(order => [
-                order.orderId || 'N/A',
-                ((order.firstName || '') + ' ' + (order.lastName || '')).trim() || 'Guest Customer',
-                order.email || 'N/A',
-                order.phone || 'N/A',
-                order.orderDate ? new Date(order.orderDate).toLocaleDateString('en-IN') : 'N/A',
-                (order.status || 'pending').toUpperCase(),
-                order.items ? order.items.map(item => `${item.name} (Qty: ${item.quantity})`).join('; ') : 'N/A',
-                order.total ? `₹${order.total.toLocaleString('en-IN')}` : '₹0',
-                order.payment || 'COD',
-                order.address || order.deliveryAddress || 'N/A',
-                order.city || 'N/A',
-                order.state || 'N/A',
-                order.pincode || 'N/A'
-            ]);
+            try {
+                const orders = await window.supabaseDB.getAllOrders();
+                
+                if (orders.length === 0) {
+                    alert('No orders data to export.');
+                    return;
+                }
+                
+                // Create CSV headers
+                const csvHeaders = [
+                    'Order ID',
+                    'Customer Name', 
+                    'Email',
+                    'Phone',
+                    'Order Date',
+                    'Status',
+                    'Items',
+                    'Total Amount',
+                    'Payment Method',
+                    'Address',
+                    'City',
+                    'State',
+                    'Pincode'
+                ];
+                
+                // Process orders data
+                const csvData = orders.map(order => [
+                    order.orderId || order.order_id || 'N/A',
+                    ((order.firstName || order.first_name || '') + ' ' + (order.lastName || order.last_name || '')).trim() || 'Guest Customer',
+                    order.email || 'N/A',
+                    order.phone || 'N/A',
+                    order.orderDate || order.order_date ? new Date(order.orderDate || order.order_date).toLocaleDateString('en-IN') : 'N/A',
+                    (order.status || 'pending').toUpperCase(),
+                    order.items ? order.items.map(item => `${item.name} (Qty: ${item.quantity})`).join('; ') : 'N/A',
+                    order.total ? `₹${order.total.toLocaleString('en-IN')}` : '₹0',
+                    order.payment || 'COD',
+                    order.address || order.deliveryAddress || order.delivery_address || 'N/A',
+                    order.city || 'N/A',
+                    order.state || 'N/A',
+                    order.pincode || 'N/A'
+                ]);
             
             // Create CSV content
             const csvContent = [csvHeaders, ...csvData]
@@ -5834,6 +5843,10 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
             window.URL.revokeObjectURL(url);
             
             alert('Orders data exported successfully!');
+            } catch (error) {
+                console.error('Error exporting orders:', error);
+                alert('Failed to export orders data. Please try again.');
+            }
         }
         
         // ===== CONTACT QUERIES FUNCTIONALITY =====
@@ -5881,69 +5894,97 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
             }
         }
         
-        // Load contact queries
-        function loadContactQueries() {
-            console.log('Loading contact queries...');
-            const queries = JSON.parse(localStorage.getItem('bumableContactQueries') || '[]');
-            console.log('Found queries in localStorage:', queries.length, queries);
-            const queriesList = document.getElementById('queries-list');
+        // Load contact queries from Supabase cloud database
+        async function loadContactQueries() {
+            console.log('Loading contact queries from Supabase...');
             
-            if (queries.length === 0) {
-                queriesList.innerHTML = '<div class="no-orders" style="text-align: center; padding: 2rem;">No contact queries yet</div>';
-                updateNewQueriesBadge(0);
-                // Update queries statistics
+            try {
+                let queries = [];
+                
+                if (window.supabaseDB && window.supabaseDB.isReady()) {
+                    const result = await window.supabaseDB.getAllContacts();
+                    if (result.success) {
+                        queries = result.contacts;
+                        console.log(`✅ Loaded ${queries.length} contact queries from Supabase`);
+                    } else {
+                        console.error('Failed to load contact queries:', result.error);
+                    }
+                } else {
+                    console.log('⚠️ Supabase not ready, showing empty contact list');
+                }
+                
+                const queriesList = document.getElementById('queries-list');
+                
+                if (queries.length === 0) {
+                    queriesList.innerHTML = '<div class="no-orders" style="text-align: center; padding: 2rem;">No contact queries yet</div>';
+                    updateNewQueriesBadge(0);
+                    updateQueriesStats();
+                    return;
+                }
+                
+                // Sort queries by timestamp (newest first)
+                queries.sort((a, b) => new Date(b.created_at || b.timestamp) - new Date(a.created_at || a.timestamp));
+                
+                // Count new queries
+                const newQueries = queries.filter(q => q.status === 'new' || q.status === 'pending').length;
+                updateNewQueriesBadge(newQueries);
+                
+                queriesList.innerHTML = queries.map(query => createQueryCard(query)).join('');
+                
+                // Update contact queries statistics
                 updateQueriesStats();
-                return;
+            } catch (error) {
+                console.error('Error loading contact queries:', error);
+                const queriesList = document.getElementById('queries-list');
+                queriesList.innerHTML = '<div class="no-orders" style="text-align: center; padding: 2rem;">Error loading contact queries</div>';
             }
-            
-            // Sort queries by timestamp (newest first)
-            queries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            
-            // Count new queries
-            const newQueries = queries.filter(q => q.status === 'new').length;
-            updateNewQueriesBadge(newQueries);
-            
-            queriesList.innerHTML = queries.map(query => createQueryCard(query)).join('');
-            
-            // Update contact queries statistics
-            updateQueriesStats();
         }
         
         // Refresh customer stats (separate from loading full customer data)
-        function refreshCustomerStats() {
-            const orders = JSON.parse(localStorage.getItem('bumableOrders')) || [];
-            const customerMap = {};
+        async function refreshCustomerStats() {
+            if (!window.supabaseDB || !window.supabaseDB.isReady()) {
+                console.error('Database not connected');
+                return;
+            }
             
-            orders.forEach(order => {
-                const customerId = order.email || order.phone || order.orderId;
-                const customerName = (order.firstName || '') + ' ' + (order.lastName || '');
+            try {
+                const orders = await window.supabaseDB.getAllOrders();
+                const customerMap = {};
                 
-                if (!customerMap[customerId]) {
-                    customerMap[customerId] = {
-                        id: customerId,
-                        name: customerName.trim() || 'Guest Customer',
-                        email: order.email || 'N/A',
-                        phone: order.phone || 'N/A',
-                        orders: 0,
-                        totalSpent: 0,
-                        firstOrder: order.orderDate,
-                        lastOrder: order.orderDate
-                    };
-                }
+                orders.forEach(order => {
+                    const customerId = order.email || order.phone || order.orderId || order.order_id;
+                    const customerName = (order.firstName || order.first_name || '') + ' ' + (order.lastName || order.last_name || '');
+                    
+                    if (!customerMap[customerId]) {
+                        customerMap[customerId] = {
+                            id: customerId,
+                            name: customerName.trim() || 'Guest Customer',
+                            email: order.email || 'N/A',
+                            phone: order.phone || 'N/A',
+                            orders: 0,
+                            totalSpent: 0,
+                            firstOrder: order.orderDate || order.order_date,
+                            lastOrder: order.orderDate || order.order_date
+                        };
+                    }
+                    
+                    customerMap[customerId].orders++;
+                    customerMap[customerId].totalSpent += parseFloat(order.total) || 0;
+                    
+                    const orderDate = order.orderDate || order.order_date;
+                    if (new Date(orderDate) < new Date(customerMap[customerId].firstOrder)) {
+                        customerMap[customerId].firstOrder = orderDate;
+                    }
+                    if (new Date(orderDate) > new Date(customerMap[customerId].lastOrder)) {
+                        customerMap[customerId].lastOrder = orderDate;
+                    }
+                });
                 
-                customerMap[customerId].orders++;
-                customerMap[customerId].totalSpent += parseFloat(order.total) || 0;
-                
-                if (new Date(order.orderDate) < new Date(customerMap[customerId].firstOrder)) {
-                    customerMap[customerId].firstOrder = order.orderDate;
-                }
-                if (new Date(order.orderDate) > new Date(customerMap[customerId].lastOrder)) {
-                    customerMap[customerId].lastOrder = order.orderDate;
-                }
-            });
-            
-            const customers = Object.values(customerMap);
-            updateCustomerStats(customers);
+                const customers = Object.values(customerMap);
+                updateCustomerStats(customers);
+            } catch (error) {
+                console.error('Error refreshing customer stats:', error);
+            }
         }
         
         // Update new queries badge
@@ -6007,21 +6048,31 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
         }
         
         // Open reply modal
-        function openReplyModal(queryId) {
-            const queries = JSON.parse(localStorage.getItem('bumableContactQueries') || '[]');
-            const query = queries.find(q => q.id === queryId);
+        async function openReplyModal(queryId) {
+            if (!window.supabaseDB || !window.supabaseDB.isReady()) {
+                alert('Database not connected.');
+                return;
+            }
             
-            if (!query) return;
-            
-            currentReplyQueryId = queryId;
-            
-            document.getElementById('reply-customer-name').textContent = `${query.firstName} ${query.lastName}`;
-            document.getElementById('reply-customer-email').textContent = query.email;
-            document.getElementById('reply-original-message').textContent = query.message;
-            document.getElementById('admin-reply').value = query.adminReply || '';
-            
-            document.getElementById('reply-modal').classList.add('show');
-            document.body.style.overflow = 'hidden';
+            try {
+                const queries = await window.supabaseDB.getAllContacts();
+                const query = queries.find(q => q.id === queryId);
+                
+                if (!query) return;
+                
+                currentReplyQueryId = queryId;
+                
+                document.getElementById('reply-customer-name').textContent = `${query.firstName || query.first_name} ${query.lastName || query.last_name}`;
+                document.getElementById('reply-customer-email').textContent = query.email;
+                document.getElementById('reply-original-message').textContent = query.message;
+                document.getElementById('admin-reply').value = query.adminReply || query.admin_reply || '';
+                
+                document.getElementById('reply-modal').classList.add('show');
+                document.body.style.overflow = 'hidden';
+            } catch (error) {
+                console.error('Error opening reply modal:', error);
+                alert('Failed to load query details.');
+            }
         }
         
         // Close reply modal
@@ -6032,54 +6083,15 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
         }
         
         // Send reply
+        // Send reply (deprecated - contact queries managed in Supabase)
         function sendReply() {
-            const replyText = document.getElementById('admin-reply').value.trim();
-            
-            if (!replyText) {
-                alert('Please enter a reply message');
-                return;
-            }
-            
-            if (!currentReplyQueryId) return;
-            
-            const queries = JSON.parse(localStorage.getItem('bumableContactQueries') || '[]');
-            const queryIndex = queries.findIndex(q => q.id === currentReplyQueryId);
-            
-            if (queryIndex !== -1) {
-                queries[queryIndex].adminReply = replyText;
-                queries[queryIndex].status = 'replied';
-                queries[queryIndex].replyTimestamp = new Date().toISOString();
-                
-                localStorage.setItem('bumableContactQueries', JSON.stringify(queries));
-                
-                // Create notification for user (simplified - in real app this would be sent via email)
-                const notifications = JSON.parse(localStorage.getItem('userNotifications') || '[]');
-                notifications.push({
-                    id: 'NOT' + Date.now(),
-                    email: queries[queryIndex].email,
-                    message: `Reply to your contact query: ${replyText}`,
-                    timestamp: new Date().toISOString(),
-                    read: false
-                });
-                localStorage.setItem('userNotifications', JSON.stringify(notifications));
-                
-                closeReplyModal();
-                loadContactQueries();
-                updateQueriesStats(); // Update statistics after reply
-                
-                alert('Reply sent successfully!');
-            }
+            alert('Contact query management is now handled through Supabase. Please use the Supabase dashboard or implement email notifications for replies.');
+            closeReplyModal();
         }
         
-        // Delete query
+        // Delete query (deprecated - contact queries managed in Supabase)
         function deleteQuery(queryId) {
-            if (!confirm('Are you sure you want to delete this query?')) return;
-            
-            let queries = JSON.parse(localStorage.getItem('bumableContactQueries') || '[]');
-            queries = queries.filter(q => q.id !== queryId);
-            localStorage.setItem('bumableContactQueries', JSON.stringify(queries));
-            
-            loadContactQueries();
+            alert('Contact query deletion is now handled through Supabase. Please use the Supabase dashboard to manage contact queries.');
         }
         
         // ===== STATUS POPUP FUNCTIONALITY =====
@@ -6143,7 +6155,7 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
         }
         
         // Save order status
-        function saveOrderStatus() {
+        async function saveOrderStatus() {
             if (!currentEditingOrderId || !selectedNewStatus) {
                 alert('Please select a status first');
                 return;
@@ -6151,55 +6163,31 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
             
             console.log('Saving order status for:', currentEditingOrderId, 'to:', selectedNewStatus);
             
-            try {
-                // Get stored orders - try both possible keys
-                let orders = JSON.parse(localStorage.getItem('bumableOrders')) || 
-                            JSON.parse(localStorage.getItem('orders')) || [];
+            if (window.supabaseDB && window.supabaseDB.isReady()) {
+                // Find the order to get its database ID
+                const order = allAdminOrders.find(o => o.orderId === currentEditingOrderId);
+                if (!order) {
+                    alert('Order not found!');
+                    return;
+                }
                 
-                console.log('Found orders:', orders.length);
-                console.log('Looking for order ID:', currentEditingOrderId);
+                const result = await window.supabaseDB.updateOrderStatus(order.id, selectedNewStatus);
                 
-                // Find and update the order
-                const orderIndex = orders.findIndex(order => order.orderId === currentEditingOrderId);
-                console.log('Order index found:', orderIndex);
-                
-                if (orderIndex !== -1) {
-                    const oldStatus = orders[orderIndex].status || 'pending';
-                    orders[orderIndex].status = selectedNewStatus;
-                    
-                    // Save back to localStorage (use the same key that was found)
-                    if (localStorage.getItem('bumableOrders')) {
-                        localStorage.setItem('bumableOrders', JSON.stringify(orders));
-                    } else {
-                        localStorage.setItem('orders', JSON.stringify(orders));
-                    }
-                    
-                    console.log('Order updated successfully');
-                    
-                    // Save order ID and status for message before closing popup
-                    const orderIdForMessage = currentEditingOrderId;
-                    const oldStatusText = (oldStatus || 'pending').toUpperCase();
-                    const newStatusText = (selectedNewStatus || 'pending').toUpperCase();
+                if (result.success) {
+                    console.log('✅ Order status updated successfully');
                     
                     // Close popup
                     closeStatusPopup();
                     
                     // Refresh the orders display
-                    if (typeof loadOrdersData === 'function') {
-                        loadOrdersData();
-                    } else if (typeof displayOrders === 'function') {
-                        displayOrders();
-                    }
+                    await loadAdminData();
                     
-                    // Show success message with saved values
-                    alert(`Order ${orderIdForMessage} status updated from "${oldStatusText}" to "${newStatusText}"`);
+                    alert(`Order status updated to: ${selectedNewStatus.toUpperCase()}`);
                 } else {
-                    console.error('Order not found in localStorage');
-                    alert('Error: Order not found in database');
+                    alert('Failed to update order status: ' + result.error);
                 }
-            } catch (error) {
-                console.error('Error updating order status:', error);
-                alert('Error updating order status: ' + error.message);
+            } else {
+                alert('Database not connected. Please check Supabase configuration.');
             }
         }
         
@@ -6226,41 +6214,52 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
         // ===== DELETE FUNCTIONALITY =====
         
         // Delete order function
-        function deleteOrder(orderId) {
+        async function deleteOrder(orderId) {
             if (!confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
                 return;
             }
             
-            const orders = JSON.parse(localStorage.getItem('bumableOrders')) || [];
-            const updatedOrders = orders.filter(order => order.orderId !== orderId);
-            
-            localStorage.setItem('bumableOrders', JSON.stringify(updatedOrders));
-            
-            // Refresh the orders display
-            loadOrdersData();
-            loadCustomersData(); // Also refresh customers as their totals might change
-            
-            alert('Order deleted successfully!');
+            if (window.supabaseDB && window.supabaseDB.isReady()) {
+                // Find the order to get its database ID
+                const order = allAdminOrders.find(o => o.orderId === orderId);
+                if (!order) {
+                    alert('Order not found!');
+                    return;
+                }
+                
+                const result = await window.supabaseDB.deleteOrder(order.id);
+                
+                if (result.success) {
+                    alert('Order deleted successfully!');
+                    // Refresh the orders display
+                    await loadAdminData();
+                } else {
+                    alert('Failed to delete order: ' + result.error);
+                }
+            } else {
+                alert('Database not connected. Please check Supabase configuration.');
+            }
         }
         
         // Delete customer function
-        function deleteCustomer(customerId) {
-            if (!confirm('Are you sure you want to delete this customer and ALL their orders? This action cannot be undone.')) {
+        async function deleteCustomer(customerId) {
+            if (!confirm('Are you sure you want to delete this customer? This action cannot be undone.')) {
                 return;
             }
             
-            const orders = JSON.parse(localStorage.getItem('bumableOrders')) || [];
-            const updatedOrders = orders.filter(order => 
-                (order.email || order.phone || order.orderId) !== customerId
-            );
-            
-            localStorage.setItem('bumableOrders', JSON.stringify(updatedOrders));
-            
-            // Refresh both displays
-            loadOrdersData();
-            loadCustomersData();
-            
-            alert('Customer and all their orders deleted successfully!');
+            if (window.supabaseDB && window.supabaseDB.isReady()) {
+                const result = await window.supabaseDB.deleteUser(customerId);
+                
+                if (result.success) {
+                    alert('Customer deleted successfully!');
+                    // Refresh both displays
+                    await loadAdminData();
+                } else {
+                    alert('Failed to delete customer: ' + result.error);
+                }
+            } else {
+                alert('Database not connected. Please check Supabase configuration.');
+            }
         }
         
         // ===== END CUSTOMER MANAGEMENT FUNCTIONS =====
@@ -6460,12 +6459,9 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
                     }
                 };
                 
-                // Save to localStorage for immediate access (fallback)
-                localStorage.setItem('bumable_layout_content', JSON.stringify(layoutContent));
-                
                 // Save to Supabase for cross-device synchronization
-                if (window.supabase) {
-                    const { error } = await window.supabase
+                if (window.supabaseDB && window.supabaseDB.isReady()) {
+                    const { error } = await window.supabaseDB.client
                         .from('website_layout')
                         .upsert({
                             section: 'homepage',
@@ -6621,8 +6617,8 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
                         if (error) throw error;
                     }
                     
-                    // Save locally
-                    localStorage.setItem('bumable_current_draft', JSON.stringify(draftVersion));
+                    // Save in session (not persistent across browser restarts)
+                    sessionStorage.setItem('bumable_current_draft', JSON.stringify(draftVersion));
                     currentDraft = draftVersion;
                     
                     showDeploymentStatus('Current changes saved as draft', 'draft');
@@ -6770,8 +6766,8 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
                     if (error) throw error;
                 }
                 
-                // Save locally
-                localStorage.setItem('bumable_current_draft', JSON.stringify(draftVersion));
+                // Save in session (not persistent across browser restarts)
+                sessionStorage.setItem('bumable_current_draft', JSON.stringify(draftVersion));
                 currentDraft = draftVersion;
                 
                 showDeploymentStatus('Draft saved successfully', 'draft');
@@ -6864,7 +6860,7 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
                 
                 // Clear current draft
                 currentDraft = null;
-                localStorage.removeItem('bumable_current_draft');
+                sessionStorage.removeItem('bumable_current_draft');
                 
                 // Broadcast to other devices
                 if ('BroadcastChannel' in window) {
@@ -7022,10 +7018,10 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
                     }
                 }
                 
-                // Fallback to localStorage
-                const localDraft = localStorage.getItem('bumable_current_draft');
-                if (localDraft) {
-                    currentDraft = JSON.parse(localDraft);
+                // Check sessionStorage (temporary, same session only)
+                const sessionDraft = sessionStorage.getItem('bumable_current_draft');
+                if (sessionDraft) {
+                    currentDraft = JSON.parse(sessionDraft);
                 }
             } catch (error) {
                 console.error('Error loading draft:', error);
@@ -7363,12 +7359,9 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
         // Load existing layout data from storage
         async function loadExistingLayoutData() {
             try {
-                // Try to load from localStorage first (fastest)
-                const localData = localStorage.getItem('bumable_layout_content');
-                
-                // Then try to load from Supabase (most up-to-date)
-                if (window.supabase) {
-                    const { data, error } = await window.supabase
+                // Load from Supabase (primary source)
+                if (window.supabaseDB && window.supabaseDB.isReady()) {
+                    const { data, error } = await window.supabaseDB.client
                         .from('website_layout')
                         .select('content')
                         .eq('section', 'homepage')
@@ -7382,12 +7375,8 @@ Customer Type: ${totalOrders > 1 ? 'Repeat Customer' : 'First-time Customer'}`);
                     }
                 }
                 
-                // Fallback to localStorage
-                if (localData) {
-                    const layoutContent = JSON.parse(localData);
-                    applyLayoutDataToEditor(layoutContent);
-                    console.log('✅ Layout data loaded from localStorage');
-                }
+                // If no data in Supabase, editor will show default placeholders
+                console.log('ℹ️ No layout data found in Supabase - using editor defaults');
                 
             } catch (error) {
                 console.error('Error loading layout data:', error);

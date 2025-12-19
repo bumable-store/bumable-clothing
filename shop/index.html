@@ -972,7 +972,7 @@
             loadProducts();
         }
         
-        function loadProducts() {
+        async function loadProducts() {
             const grid = document.getElementById("productGrid");
             if (!grid) {
                 return;
@@ -982,7 +982,7 @@
                 return;
             }
             
-            let products = window.productManager.getAllProducts();
+            let products = await window.productManager.getAllProducts();
             if (!products || products.length === 0) {
                 grid.innerHTML = '<div style="text-align: center; padding: 2rem; color: #666;">No products available</div>';
                 return;
@@ -1075,11 +1075,11 @@
             }).join("");
         }
         
-        window.changeQuantity = function(productId, change) {
+        window.changeQuantity = async function(productId, change) {
             const qtyDisplay = document.getElementById(`qty-display-${productId}`);
             if (!qtyDisplay) return;
             
-            const product = window.productManager.getProduct(productId);
+            const product = await window.productManager.getProduct(productId);
             if (!product) return;
             
             let currentQty = parseInt(qtyDisplay.textContent) || 0;
@@ -1107,11 +1107,11 @@
             }
         };
 
-        window.addProductToCart = function(productId) {
+        window.addProductToCart = async function(productId) {
             const selectedSizeElement = document.querySelector(`[data-product-id="${productId}"].card-size-option.selected`);
             const qtyDisplay = document.getElementById(`qty-display-${productId}`);
             
-            const product = window.productManager.getProduct(productId);
+            const product = await window.productManager.getProduct(productId);
             if (!product) return;
             
             // Check if product is in stock
@@ -1205,8 +1205,8 @@
         let modalQuantity = 0;
         
         // Open product modal
-        function openProductModal(productId) {
-            const product = window.productManager.getProduct(productId);
+        async function openProductModal(productId) {
+            const product = await window.productManager.getProduct(productId);
             if (!product) return;
             
             currentModalProduct = product;

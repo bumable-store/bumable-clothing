@@ -75,8 +75,8 @@ class ShoppingCart {
 
         try {
             // Load cart from Supabase user_carts table
-            if (window.supabase) {
-                const { data, error } = await window.supabase
+            if (window.supabaseDB && window.supabaseDB.isReady()) {
+                const { data, error } = await window.supabaseDB.client
                     .from('user_carts')
                     .select('cart_data')
                     .eq('user_email', this.currentUser.email)
@@ -144,10 +144,10 @@ class ShoppingCart {
         }
 
         try {
-            if (window.supabase) {
+            if (window.supabaseDB && window.supabaseDB.isReady()) {
                 const cartData = JSON.stringify(this.items);
                 
-                const { error } = await window.supabase
+                const { error } = await window.supabaseDB.client
                     .from('user_carts')
                     .upsert({
                         user_email: this.currentUser.email,
@@ -160,10 +160,14 @@ class ShoppingCart {
                     this.saveGuestCart();
                 } else {
                     console.log('✅ User cart saved to cloud');
+                    // Don't save to localStorage for logged-in users - Supabase only
+                    return;
                 }
+            } else {
+                console.warn('⚠️ Supabase not configured - using localStorage fallback');
             }
             
-            // Also save to localStorage as backup
+            // Fallback to localStorage only if Supabase fails
             this.saveGuestCart();
         } catch (error) {
             console.warn('Error saving user cart:', error);
@@ -472,14 +476,8 @@ class ShoppingCart {
             return;
         }
 
-        // Save cart state for checkout
-        localStorage.setItem('checkoutCart', JSON.stringify({
-            items: this.items,
-            subtotal: this.subtotal,
-            tax: this.tax,
-            shipping: this.shipping,
-            total: this.total
-        }));
+        // Cart data is already in memory and will be available on checkout page
+        // No need to store in localStorage - cart is loaded from Supabase for logged-in users
 
         // Determine correct path based on current location
         const currentPath = window.location.pathname;

@@ -2,17 +2,68 @@
 
 class ProductManager {
     constructor() {
-        // Check for updated products in localStorage first
-        const storedProducts = localStorage.getItem('bumable_products');
-        if (storedProducts) {
+        // Products are now managed in Supabase
+        this.products = [];
+        this.loading = true;
+        this.initialized = false;
+        
+        // Initialize products from Supabase
+        this.init();
+    }
+
+    async init() {
+        if (window.supabaseDB && window.supabaseDB.client) {
             try {
-                this.products = JSON.parse(storedProducts);
-            } catch (e) {
+                this.loading = true;
+                const dbProducts = await window.supabaseDB.getAllProducts();
+                
+                if (dbProducts && dbProducts.length > 0) {
+                    // Map snake_case database fields to camelCase
+                    this.products = dbProducts.map(p => ({
+                        id: p.product_id,
+                        name: p.name,
+                        regularPrice: p.regular_price,
+                        salePrice: p.sale_price,
+                        onSale: p.on_sale,
+                        image: p.image_url,
+                        category: p.category,
+                        description: p.description,
+                        inStock: p.in_stock,
+                        stockCount: p.stock_count,
+                        availableSizes: p.available_sizes
+                    }));
+                    console.log(`✅ Loaded ${this.products.length} products from Supabase`);
+                } else {
+                    // Fallback to default products if database is empty
+                    console.warn('⚠️ No products found in database, using defaults');
+                    this.products = this.getThe12Products();
+                }
+            } catch (error) {
+                console.error('❌ Error loading products from Supabase:', error);
+                // Fallback to default products on error
                 this.products = this.getThe12Products();
+            } finally {
+                this.loading = false;
+                this.initialized = true;
             }
         } else {
+            console.warn('⚠️ Supabase not configured, using default products');
             this.products = this.getThe12Products();
+            this.loading = false;
+            this.initialized = true;
         }
+    }
+
+    async waitForInit() {
+        if (this.initialized) return;
+        return new Promise(resolve => {
+            const checkInit = setInterval(() => {
+                if (this.initialized) {
+                    clearInterval(checkInit);
+                    resolve();
+                }
+            }, 100);
+        });
     }
 
     getThe12Products() {
@@ -32,9 +83,20 @@ class ProductManager {
         ];
     }
 
-    getAllProducts() { return this.products; }
-    getProduct(id) { return this.products.find(p => p.id === id); }
-    getProductsByCategory(category) { return this.products.filter(p => p.category === category); }
+    async getAllProducts() { 
+        await this.waitForInit();
+        return this.products; 
+    }
+    
+    async getProduct(id) { 
+        await this.waitForInit();
+        return this.products.find(p => p.id === id); 
+    }
+    
+    async getProductsByCategory(category) { 
+        await this.waitForInit();
+        return this.products.filter(p => p.category === category); 
+    }
     
     getCurrentPrice(product) {
         return product.salePrice || product.regularPrice;
@@ -45,38 +107,62 @@ class ProductManager {
         return Math.round((1 - product.salePrice / product.regularPrice) * 100);
     }
     
-    updateProduct(id, updates) {
+    async updateProduct(id, updates) {
         const index = this.products.findIndex(p => p.id === id);
-        if (index !== -1) {
+        if (index === -1) return false;
+
+        // Update in Supabase if configured
+        if (window.supabaseDB && window.supabaseDB.client) {
+            try {
+                const result = await window.supabaseDB.updateProduct(id, updates);
+                if (result.success) {
+                    // Update local cache with database response
+                    if (result.data) {
+                        this.products[index] = {
+                            id: result.data.product_id,
+                            name: result.data.name,
+                            regularPrice: result.data.regular_price,
+                            salePrice: result.data.sale_price,
+                            onSale: result.data.on_sale,
+                            image: result.data.image_url,
+                            category: result.data.category,
+                            description: result.data.description,
+                            inStock: result.data.in_stock,
+                            stockCount: result.data.stock_count,
+                            availableSizes: result.data.available_sizes
+                        };
+                    }
+                    console.log('✅ Product updated in Supabase and synced across all devices');
+                    return true;
+                } else {
+                    console.error('❌ Failed to update product in Supabase:', result.error);
+                    return false;
+                }
+            } catch (error) {
+                console.error('❌ Error updating product:', error);
+                return false;
+            }
+        } else {
+            // Fallback to local update only
             this.products[index] = {...this.products[index], ...updates};
-            this.saveToStorage();
+            console.warn('⚠️ Product updated locally only (Supabase not configured)');
             return true;
         }
-        return false;
     }
 
     saveToStorage() {
-        try {
-            localStorage.setItem('bumable_products', JSON.stringify(this.products));
-        } catch (e) {
-            // Silent fail for storage issues
-        }
+        // Deprecated - products are now stored in Supabase only
+        console.log('Products are managed in Supabase cloud database');
     }
 
     resetToDefaults() {
         this.products = this.getThe12Products();
-        localStorage.removeItem('bumable_products');
+        // Products are managed in Supabase - no localStorage to remove
     }
 }
 
 // Initialize product manager when script loads
 if (typeof window !== 'undefined') {
-    if (localStorage.getItem('bumable_products')) {
-        // Load from admin updates
-    } else {
-        // Use defaults
-    }
-    
     // Initialize ProductManager globally
     window.ProductManager = ProductManager;
     window.productManager = new ProductManager();

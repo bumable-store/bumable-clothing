@@ -382,97 +382,23 @@ function loadNotifications() {
     const notificationsList = document.getElementById('notifications-list');
     const notificationCount = document.getElementById('notification-count');
     
-    // Get unread contact queries with replies
-    const contactQueries = JSON.parse(localStorage.getItem('bumableContactQueries') || '[]');
-    const unreadReplies = contactQueries.filter(query => query.adminReply && query.status === 'replied' && !query.read);
+    // Note: Notification system now requires server-side implementation
+    // to fetch admin replies from Supabase and notify users
+    console.warn('Notification system deprecated - contact queries now stored in Supabase');
     
-    console.log('Found unread replies:', unreadReplies.length);
-    
-    if (unreadReplies.length === 0) {
-        notificationsList.innerHTML = `
-            <div class="no-notifications">
-                <i class="fas fa-bell-slash"></i>
-                <p>No new notifications</p>
-            </div>
-        `;
-        notificationCount.style.display = 'none';
-        return;
-    }
-    
-    // Sort by reply timestamp (newest first)
-    unreadReplies.sort((a, b) => new Date(b.replyTimestamp) - new Date(a.replyTimestamp));
-    
-    // Display notification count
-    notificationCount.textContent = unreadReplies.length;
-    notificationCount.style.display = 'inline';
-    
-    // Create notification items
-    notificationsList.innerHTML = unreadReplies.map(query => `
-        <div class="notification-item" onclick="viewQueryResponse('${query.id}')">
-            <div class="notification-icon">
-                <i class="fas fa-reply"></i>
-            </div>
-            <div class="notification-content">
-                <h4>Response to Your Query</h4>
-                <p>We have responded to your inquiry. Click to view our response.</p>
-                <span class="notification-time">${formatDate(query.replyTimestamp)}</span>
-            </div>
-        </div>
-    `).join('');
-}
-
-// View query response in a professional format
-function viewQueryResponse(queryId) {
-    const contactQueries = JSON.parse(localStorage.getItem('bumableContactQueries') || '[]');
-    const query = contactQueries.find(q => q.id === queryId);
-    
-    if (!query) return;
-    
-    // Create response view modal
-    const responseModal = document.createElement('div');
-    responseModal.id = 'response-modal';
-    responseModal.className = 'modal';
-    responseModal.innerHTML = `
-        <div class="modal-content" style="max-width: 600px;">
-            <span class="close" onclick="closeResponseModal()">&times;</span>
-            <h2>📧 Response to Your Query</h2>
-            
-            <div class="query-response-container">
-                <div class="user-query">
-                    <h3>Your Message</h3>
-                    <div class="query-info">
-                        <p><strong>Sent:</strong> ${formatDate(query.timestamp)}</p>
-                    </div>
-                    <div class="query-message">
-                        <p>${query.message}</p>
-                    </div>
-                </div>
-                
-                <div class="response-divider"></div>
-                
-                <div class="support-response">
-                    <h3>💬 Response from Bumable Support</h3>
-                    <div class="response-info">
-                        <p><strong>Replied:</strong> ${formatDate(query.replyTimestamp)}</p>
-                    </div>
-                    <div class="response-message">
-                        <p>${query.adminReply}</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="response-actions">
-                <button class="btn btn-primary" onclick="closeResponseModal()">Got it, Thanks!</button>
-                <button class="btn btn-secondary" onclick="markAsRead('${query.id}')">Mark as Read</button>
-            </div>
+    notificationsList.innerHTML = `
+        <div class="no-notifications">
+            <i class="fas fa-bell-slash"></i>
+            <p>No new notifications</p>
         </div>
     `;
-    
-    document.body.appendChild(responseModal);
-    responseModal.style.display = 'block';
-    
-    // Close notifications dropdown
-    closeNotifications();
+    notificationCount.style.display = 'none';
+}
+
+// View query response in a professional format (deprecated - data in Supabase)
+function viewQueryResponse(queryId) {
+    console.warn('viewQueryResponse deprecated - contact queries now stored in Supabase');
+    alert('This feature requires server-side implementation to fetch admin replies from Supabase.');
 }
 
 // Close response modal
@@ -483,21 +409,12 @@ function closeResponseModal() {
     }
 }
 
-// Mark notification as read
+// Mark notification as read (deprecated - using Supabase)
 function markAsRead(queryId) {
-    const contactQueries = JSON.parse(localStorage.getItem('bumableContactQueries') || '[]');
-    const queryIndex = contactQueries.findIndex(q => q.id === queryId);
-    
-    if (queryIndex !== -1) {
-        contactQueries[queryIndex].read = true;
-        localStorage.setItem('bumableContactQueries', JSON.stringify(contactQueries));
-        
-        // Update notification count
-        initNotifications();
-        loadNotifications();
-        
-        closeResponseModal();
-    }
+    console.log('Mark as read:', queryId);
+    // This function is deprecated - contact queries are now managed in Supabase
+    // Admin panel should update status directly in the database
+    closeResponseModal();
 }
 
 // Format date for display
@@ -506,17 +423,11 @@ function formatDate(dateString) {
     return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 }
 
-// Initialize notifications on page load
+// Initialize notifications on page load (deprecated - now in Supabase)
 function initNotifications() {
-    // Load notification count on page load
-    const contactQueries = JSON.parse(localStorage.getItem('bumableContactQueries') || '[]');
-    const unreadReplies = contactQueries.filter(query => query.adminReply && query.status === 'replied' && !query.read);
+    console.warn('initNotifications deprecated - contact queries now stored in Supabase');
     const notificationCount = document.getElementById('notification-count');
-    
-    if (unreadReplies.length > 0) {
-        notificationCount.textContent = unreadReplies.length;
-        notificationCount.style.display = 'inline';
-    } else {
+    if (notificationCount) {
         notificationCount.style.display = 'none';
     }
 }
@@ -635,32 +546,39 @@ function initContactForm() {
                             throw new Error('GitHub database not available');
                         }
                     } catch (error) {
-                        console.warn('GitHub database failed, using localStorage fallback:', error);
+                        console.warn('GitHub database failed, trying Supabase:', error);
                         
-                        // Fallback to localStorage
-                        const contactQuery = {
-                            id: 'CQ' + Date.now(),
-                            firstName: firstName,
-                            lastName: lastName,
-                            email: email,
-                            message: message,
-                            timestamp: new Date().toISOString(),
-                            status: 'new',
-                            adminReply: null,
-                            replyTimestamp: null
-                        };
-                        
-                        const contactQueries = JSON.parse(localStorage.getItem('bumableContactQueries') || '[]');
-                        contactQueries.push(contactQuery);
-                        localStorage.setItem('bumableContactQueries', JSON.stringify(contactQueries));
-                        
-                        console.log('💾 Saved to localStorage. Total queries:', contactQueries.length);
-                        
-                        // Show success message
-                        messageDiv.style.backgroundColor = '#d4edda';
-                        messageDiv.style.color = '#155724';
-                        messageDiv.style.border = '1px solid #c3e6cb';
-                        messageDiv.innerHTML = '✓ Thank you for your message! We will get back to you soon.';
+                        // Try Supabase cloud database
+                        try {
+                            if (window.supabaseDB && window.supabaseDB.isReady()) {
+                                const contactData = {
+                                    firstName: firstName,
+                                    lastName: lastName,
+                                    email: email,
+                                    message: message
+                                };
+                                
+                                const result = await window.supabaseDB.saveContact(contactData);
+                                
+                                if (result.success) {
+                                    console.log('✅ Contact saved to Supabase');
+                                    messageDiv.style.backgroundColor = '#d4edda';
+                                    messageDiv.style.color = '#155724';
+                                    messageDiv.style.border = '1px solid #c3e6cb';
+                                    messageDiv.innerHTML = '✓ Thank you for your message! We will get back to you soon.';
+                                } else {
+                                    throw new Error('Supabase save failed: ' + result.error);
+                                }
+                            } else {
+                                throw new Error('Supabase not configured');
+                            }
+                        } catch (supabaseError) {
+                            console.error('❌ Both GitHub and Supabase failed:', supabaseError);
+                            messageDiv.style.backgroundColor = '#f8d7da';
+                            messageDiv.style.color = '#721c24';
+                            messageDiv.style.border = '1px solid #f5c6cb';
+                            messageDiv.innerHTML = '✗ Error: Unable to submit message. Database not configured. Please contact support directly.';
+                        }
                     }
                     
                     // Reset form

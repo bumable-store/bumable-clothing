@@ -166,6 +166,71 @@ class SupabaseDB {
     }
 
     // ==========================================
+    // SESSION MANAGEMENT
+    // ==========================================
+
+    /**
+     * Create user session
+     */
+    async createSession(user) {
+        try {
+            const sessionData = {
+                user_email: user.email,
+                user_id: user.id || user.email,
+                session_data: JSON.stringify(user),
+                created_at: new Date().toISOString(),
+                expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
+            };
+
+            const { data, error } = await this.client
+                .from('user_sessions')
+                .upsert(sessionData, { onConflict: 'user_email' })
+                .select()
+                .single();
+
+            if (error) throw error;
+            console.log('✅ Session created in Supabase');
+            return { success: true, session: data };
+        } catch (error) {
+            console.error('❌ Session creation failed:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Get current session
+     */
+    async getCurrentSession() {
+        try {
+            // This would need to be called with a user identifier
+            // For now, return success: false as we need to implement proper session handling
+            return { success: false, message: 'Session retrieval not implemented' };
+        } catch (error) {
+            console.error('❌ Session retrieval failed:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Delete user session (logout)
+     */
+    async deleteSession(userEmail) {
+        try {
+            const { error } = await this.client
+                .from('user_sessions')
+                .delete()
+                .eq('user_email', userEmail);
+
+            if (error) throw error;
+            console.log('✅ Session deleted from Supabase');
+            return { success: true };
+        } catch (error) {
+            console.error('❌ Session deletion failed:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    // ==========================================
     // ORDER MANAGEMENT  
     // ==========================================
 
@@ -363,6 +428,24 @@ class SupabaseDB {
     }
 
     /**
+     * Get all user activities (admin)
+     */
+    async getAllUserActivities() {
+        try {
+            const { data, error } = await this.client
+                .from('user_activities')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return { success: true, activities: data || [] };
+        } catch (error) {
+            console.error('❌ Failed to fetch user activities:', error);
+            return { success: false, error: error.message, activities: [] };
+        }
+    }
+
+    /**
      * Get analytics data (admin)
      */
     async getAnalytics() {
@@ -537,6 +620,66 @@ class SupabaseDB {
     }
 
     /**
+     * Delete order
+     */
+    async deleteOrder(orderId) {
+        try {
+            // First delete order items
+            const { error: itemsError } = await this.client
+                .from('order_items')
+                .delete()
+                .eq('order_id', orderId);
+
+            if (itemsError) throw itemsError;
+
+            // Then delete the order
+            const { error: orderError } = await this.client
+                .from('orders')
+                .delete()
+                .eq('id', orderId);
+
+            if (orderError) throw orderError;
+
+            return {
+                success: true,
+                message: 'Order deleted successfully'
+            };
+        } catch (error) {
+            console.error('Error deleting order:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Delete user
+     */
+    async deleteUser(userId) {
+        try {
+            const { error } = await this.client
+                .from('users')
+                .delete()
+                .eq('id', userId);
+
+            if (error) throw error;
+
+            return {
+                success: true,
+                message: 'User deleted successfully'
+            };
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+
+    /**
      * Migrate existing products to Supabase
      */
     async migrateProductsToSupabase() {
@@ -680,6 +823,106 @@ class SupabaseDB {
      */
     static isConfigured() {
         return localStorage.getItem('supabase_url') && localStorage.getItem('supabase_key');
+    }
+
+    // ===== PRODUCT MANAGEMENT METHODS =====
+
+    /**
+     * Get all products from database
+     */
+    async getAllProducts() {
+        try {
+            const { data, error } = await this.client
+                .from('products')
+                .select('*')
+                .eq('status', 'active')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error fetching products:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get a single product by ID
+     */
+    async getProduct(productId) {
+        try {
+            const { data, error} = await this.client
+                .from('products')
+                .select('*')
+                .eq('product_id', productId)
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error fetching product:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Get products by category
+     */
+    async getProductsByCategory(category) {
+        try {
+            const { data, error } = await this.client
+                .from('products')
+                .select('*')
+                .eq('category', category)
+                .eq('status', 'active')
+                .order('name');
+
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error fetching products by category:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Update an existing product
+     */
+    async updateProduct(productId, updates) {
+        try {
+            const updateData = {};
+            
+            // Map camelCase to snake_case
+            if (updates.name !== undefined) updateData.name = updates.name;
+            if (updates.description !== undefined) updateData.description = updates.description;
+            if (updates.category !== undefined) updateData.category = updates.category;
+            if (updates.regularPrice !== undefined) updateData.regular_price = updates.regularPrice;
+            if (updates.regular_price !== undefined) updateData.regular_price = updates.regular_price;
+            if (updates.salePrice !== undefined) updateData.sale_price = updates.salePrice;
+            if (updates.sale_price !== undefined) updateData.sale_price = updates.sale_price;
+            if (updates.onSale !== undefined) updateData.on_sale = updates.onSale;
+            if (updates.on_sale !== undefined) updateData.on_sale = updates.on_sale;
+            if (updates.image !== undefined) updateData.image_url = updates.image;
+            if (updates.image_url !== undefined) updateData.image_url = updates.image_url;
+            if (updates.inStock !== undefined) updateData.in_stock = updates.inStock;
+            if (updates.in_stock !== undefined) updateData.in_stock = updates.in_stock;
+            if (updates.stockCount !== undefined) updateData.stock_count = updates.stockCount;
+            if (updates.stock_count !== undefined) updateData.stock_count = updates.stock_count;
+            if (updates.availableSizes !== undefined) updateData.available_sizes = updates.availableSizes;
+            if (updates.available_sizes !== undefined) updateData.available_sizes = updates.available_sizes;
+
+            const { data, error } = await this.client
+                .from('products')
+                .update(updateData)
+                .eq('product_id', productId)
+                .select();
+
+            if (error) throw error;
+            return { success: true, data: data[0] };
+        } catch (error) {
+            console.error('Error updating product:', error);
+            return { success: false, error: error.message };
+        }
     }
 }
 

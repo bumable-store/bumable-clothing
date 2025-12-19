@@ -611,13 +611,8 @@
                 orderData.orderDate = new Date().toISOString();
                 orderData.orderId = 'BUM' + Date.now();
                 
-                // Add customer session info to order
-                const session = JSON.parse(localStorage.getItem('bumableSession') || 'null');
-                if (session && session.type === 'customer') {
-                    orderData.customerPhone = session.phone;
-                    orderData.customerName = session.name;
-                    orderData.customerId = session.sessionId;
-                }
+                // Session management is now handled through Supabase
+                // User authentication provides customer info
                 
                 // Validate required fields
                 if (!validateForm(orderData)) {
@@ -688,7 +683,7 @@
         }
 
         // Process order
-        function processOrder(orderData) {
+        async function processOrder(orderData) {
             try {
                 // Disable the submit button to prevent multiple submissions
                 const submitBtn = document.querySelector('.btn-place-order');
@@ -710,10 +705,42 @@
                 orderData.total = total;
                 orderData.status = 'confirmed';
                 
-                // Save order to localStorage (in real app, send to server)
-                const orders = JSON.parse(localStorage.getItem('bumableOrders')) || [];
-                orders.push(orderData);
-                localStorage.setItem('bumableOrders', JSON.stringify(orders));
+                // Save order to Supabase (Cloud Database)
+                if (window.supabaseDB && window.supabaseDB.isReady()) {
+                    const shippingAddress = {
+                        address1: orderData.address,
+                        address2: orderData.address2 || '',
+                        city: orderData.city,
+                        state: orderData.state,
+                        pincode: orderData.pincode,
+                        country: 'India'
+                    };
+                    
+                    const result = await window.supabaseDB.saveOrder({
+                        customerEmail: orderData.email,
+                        customerName: `${orderData.firstName} ${orderData.lastName}`,
+                        items: orderData.items,
+                        totalAmount: total,
+                        shippingAddress: shippingAddress,
+                        paymentMethod: orderData.payment || 'cod'
+                    });
+                    
+                    if (!result.success) {
+                        throw new Error('Failed to save order to database: ' + result.error);
+                    }
+                    
+                    console.log('✅ Order saved to Supabase successfully');
+                } else {
+                    console.warn('⚠️ Supabase not configured - order not saved to cloud database');
+                    alert('Warning: Database not configured. Order cannot be saved. Please contact support.');
+                    
+                    // Re-enable submit button
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Place Order <i class="fas fa-arrow-right"></i>';
+                    }
+                    return;
+                }
                 
                 // Update customer data with order information
                 updateCustomerOrderData(orderData);
@@ -737,8 +764,8 @@ Stock has been updated for your purchased items.
 You will receive a confirmation email shortly.
                 `;
                 
-                // Save recent order for success page
-                localStorage.setItem('bumableRecentOrder', JSON.stringify(orderData));
+                // Save recent order for success page (sessionStorage - not persistent)
+                sessionStorage.setItem('bumableRecentOrder', JSON.stringify(orderData));
                 
                 // Clear the cart
                 localStorage.removeItem('bumableCart');
@@ -807,18 +834,9 @@ You will receive a confirmation email shortly.
         function updateCustomerOrderData(orderData) {
             if (!orderData.customerPhone) return;
             
-            let customers = JSON.parse(localStorage.getItem('bumableCustomers')) || [];
-            const customerIndex = customers.findIndex(c => c.phone === orderData.customerPhone);
-            
-            if (customerIndex !== -1) {
-                // Update existing customer
-                customers[customerIndex].totalOrders = (customers[customerIndex].totalOrders || 0) + 1;
-                customers[customerIndex].totalSpent = (customers[customerIndex].totalSpent || 0) + orderData.total;
-                customers[customerIndex].lastOrderDate = orderData.orderDate;
-                customers[customerIndex].lastOrderId = orderData.orderId;
-            }
-            
-            localStorage.setItem('bumableCustomers', JSON.stringify(customers));
+            // Customer data is now managed in Supabase through orders
+            // No need to maintain separate customer cache in localStorage
+            console.log('Customer order data tracked in Supabase orders table');
         }
 
         // Generate UPI QR code (placeholder)
