@@ -91,7 +91,41 @@ function setupRealtimeUpdates() {
         )
         .subscribe();
     
-    console.log('✅ Real-time subscriptions setup complete');
+    // Subscribe to product changes for real-time sync
+    const productChannel = window.supabase
+        .channel('product-updates')
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'products'
+            },
+            (payload) => {
+                console.log('Product update received:', payload);
+                
+                if (payload.eventType === 'INSERT') {
+                    showNotification(`✨ New product added: ${payload.new.name}`, 'success');
+                } else if (payload.eventType === 'UPDATE') {
+                    showNotification(`📝 Product updated: ${payload.new.name}`, 'info');
+                } else if (payload.eventType === 'DELETE') {
+                    showNotification(`🗑️ Product deleted`, 'warning');
+                }
+                
+                // Reload products if on product management page
+                if (typeof loadAdminProducts === 'function') {
+                    loadAdminProducts();
+                }
+                
+                // Update stats
+                if (typeof updateProductStats === 'function') {
+                    updateProductStats();
+                }
+            }
+        )
+        .subscribe();
+    
+    console.log('✅ Real-time subscriptions setup complete (deployments, layouts, products)');
 }
 
 // Initialize everything when DOM is loaded

@@ -15,6 +15,9 @@ class ProductManager {
     async init() {
         window.Logger?.time('Product loading');
         
+        // Setup real-time product subscription first
+        this.setupRealtimeSync();
+        
         // Try to get from cache first
         const cachedProducts = window.CacheManager?.get('products');
         if (cachedProducts && cachedProducts.length > 0) {
@@ -35,7 +38,7 @@ class ProductManager {
                 if (dbProducts && dbProducts.length > 0) {
                     // Map snake_case database fields to camelCase
                     this.products = dbProducts.map(p => ({
-                        id: p.product_id,
+                        id: p.product_id || p.id,
                         name: p.name,
                         regularPrice: p.regular_price,
                         salePrice: p.sale_price,
@@ -72,6 +75,84 @@ class ProductManager {
             this.loading = false;
             this.initialized = true;
             window.Logger?.timeEnd('Product loading');
+        }
+    }
+
+    // Setup real-time product synchronization
+    setupRealtimeSync() {
+        if (!window.supabaseDB || !window.supabaseDB.client) {
+            window.Logger?.warn('Supabase not available for real-time sync');
+            return;
+        }
+
+        try {
+            const channel = window.supabaseDB.client
+                .channel('products-realtime')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'products'
+                    },
+                    async (payload) => {
+                        window.Logger?.info('Product update received:', payload.eventType);
+                        
+                        // Refresh products from database
+                        await this.refreshProducts();
+                        
+                        // Clear cache to force reload
+                        window.CacheManager?.delete('products');
+                        
+                        // Notify user of changes
+                        if (payload.eventType === 'INSERT') {
+                            window.Logger?.success(`New product added: ${payload.new.name}`);
+                        } else if (payload.eventType === 'UPDATE') {
+                            window.Logger?.info(`Product updated: ${payload.new.name}`);
+                        } else if (payload.eventType === 'DELETE') {
+                            window.Logger?.info(`Product deleted`);
+                        }
+                        
+                        // Trigger page refresh if we're on shop page
+                        if (window.location.pathname.includes('shop') && typeof displayProducts === 'function') {
+                            displayProducts();
+                        }
+                    }
+                )
+                .subscribe();
+
+            window.Logger?.success('Real-time product sync enabled');
+        } catch (error) {
+            window.Logger?.error('Failed to setup real-time sync:', error);
+        }
+    }
+
+    // Refresh products from database
+    async refreshProducts() {
+        try {
+            const dbProducts = await window.supabaseDB.getAllProducts();
+            
+            if (dbProducts && dbProducts.length > 0) {
+                this.products = dbProducts.map(p => ({
+                    id: p.product_id || p.id,
+                    name: p.name,
+                    regularPrice: p.regular_price,
+                    salePrice: p.sale_price,
+                    onSale: p.on_sale,
+                    image: p.image_url,
+                    category: p.category,
+                    description: p.description,
+                    inStock: p.in_stock,
+                    stockCount: p.stock_count,
+                    availableSizes: p.available_sizes
+                }));
+                
+                // Update cache
+                window.CacheManager?.set('products', this.products, this.cacheTTL);
+                window.Logger?.success(`Refreshed ${this.products.length} products`);
+            }
+        } catch (error) {
+            window.Logger?.error('Error refreshing products:', error);
         }
     }
 

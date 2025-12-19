@@ -515,26 +515,31 @@ class SupabaseDB {
      */
     async addProduct(productData) {
         try {
+            // Handle both naming conventions (camelCase and snake_case)
+            const product = {
+                product_id: productData.id || productData.product_id,
+                name: productData.name,
+                description: productData.description || '',
+                category: productData.category,
+                regular_price: productData.regular_price || productData.regularPrice,
+                sale_price: productData.sale_price || productData.salePrice || null,
+                on_sale: productData.on_sale !== undefined ? productData.on_sale : (productData.onSale || false),
+                image_url: productData.image_url || productData.image || '../images/products/default.jpg',
+                gallery_images: productData.gallery_images || productData.gallery || [],
+                in_stock: productData.in_stock !== undefined ? productData.in_stock : (productData.inStock !== undefined ? productData.inStock : true),
+                stock_count: productData.stock_count || productData.stockCount || 0,
+                available_sizes: productData.available_sizes || productData.availableSizes || [],
+                featured: productData.featured || false
+            };
+
             const { data, error } = await this.client
                 .from('products')
-                .insert([{
-                    product_id: productData.id,
-                    name: productData.name,
-                    description: productData.description,
-                    category: productData.category,
-                    regular_price: productData.regularPrice,
-                    sale_price: productData.salePrice || null,
-                    on_sale: productData.onSale || false,
-                    image_url: productData.image,
-                    gallery_images: productData.gallery || [],
-                    in_stock: productData.inStock || true,
-                    stock_count: productData.stockCount || 0,
-                    available_sizes: productData.availableSizes || [],
-                    featured: productData.featured || false
-                }])
+                .insert([product])
                 .select();
 
             if (error) throw error;
+
+            window.Logger?.info('Product added successfully:', data[0]);
 
             return {
                 success: true,
@@ -555,29 +560,49 @@ class SupabaseDB {
      */
     async updateProduct(productId, productData) {
         try {
-            const updateData = {
-                name: productData.name,
-                description: productData.description,
-                category: productData.category,
-                regular_price: productData.regularPrice,
-                sale_price: productData.salePrice || null,
-                on_sale: productData.onSale || false,
-                image_url: productData.image,
-                gallery_images: productData.gallery || [],
-                in_stock: productData.inStock || true,
-                stock_count: productData.stockCount || 0,
-                available_sizes: productData.availableSizes || [],
-                featured: productData.featured || false,
-                updated_at: new Date().toISOString()
-            };
+            // Build update object with only provided fields (handle both naming conventions)
+            const updateData = {};
+            
+            if (productData.name !== undefined) updateData.name = productData.name;
+            if (productData.description !== undefined) updateData.description = productData.description;
+            if (productData.category !== undefined) updateData.category = productData.category;
+            if (productData.regular_price !== undefined || productData.regularPrice !== undefined) {
+                updateData.regular_price = productData.regular_price || productData.regularPrice;
+            }
+            if (productData.sale_price !== undefined || productData.salePrice !== undefined) {
+                updateData.sale_price = productData.sale_price || productData.salePrice || null;
+            }
+            if (productData.on_sale !== undefined || productData.onSale !== undefined) {
+                updateData.on_sale = productData.on_sale !== undefined ? productData.on_sale : productData.onSale;
+            }
+            if (productData.image_url !== undefined || productData.image !== undefined) {
+                updateData.image_url = productData.image_url || productData.image;
+            }
+            if (productData.gallery_images !== undefined || productData.gallery !== undefined) {
+                updateData.gallery_images = productData.gallery_images || productData.gallery;
+            }
+            if (productData.in_stock !== undefined || productData.inStock !== undefined) {
+                updateData.in_stock = productData.in_stock !== undefined ? productData.in_stock : productData.inStock;
+            }
+            if (productData.stock_count !== undefined || productData.stockCount !== undefined) {
+                updateData.stock_count = productData.stock_count || productData.stockCount;
+            }
+            if (productData.available_sizes !== undefined || productData.availableSizes !== undefined) {
+                updateData.available_sizes = productData.available_sizes || productData.availableSizes;
+            }
+            if (productData.featured !== undefined) updateData.featured = productData.featured;
+            
+            updateData.updated_at = new Date().toISOString();
 
             const { data, error } = await this.client
                 .from('products')
                 .update(updateData)
-                .eq('product_id', productId)
+                .eq('id', productId)
                 .select();
 
             if (error) throw error;
+
+            window.Logger?.info('Product updated successfully:', data[0]);
 
             return {
                 success: true,
