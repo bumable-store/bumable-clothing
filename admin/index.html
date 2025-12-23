@@ -4059,17 +4059,30 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
 
         async function editProductDetails(productId) {
             try {
+                console.log('=== EDIT PRODUCT DEBUG ===');
+                console.log('1. Requested product ID:', productId, 'Type:', typeof productId);
+                
                 const result = await window.supabaseDB.getAllProducts();
                 const products = result.products || [];
-                console.log('Looking for product with ID:', productId);
-                console.log('Available products:', products.map(p => ({ id: p.id, product_id: p.product_id })));
                 
-                // Check both id and product_id fields
-                const product = products.find(p => p.id === productId || p.product_id === productId || String(p.id) === String(productId) || String(p.product_id) === String(productId));
+                console.log('2. Total products found:', products.length);
+                console.log('3. First product structure:', products[0]);
+                console.log('4. All product IDs:', products.map(p => ({ id: p.id, product_id: p.product_id, type_id: typeof p.id, type_product_id: typeof p.product_id })));
+                
+                // Check both id and product_id fields with type coercion
+                const product = products.find(p => 
+                    p.id === productId || 
+                    p.product_id === productId || 
+                    String(p.id) === String(productId) || 
+                    String(p.product_id) === String(productId) ||
+                    Number(p.id) === Number(productId)
+                );
+                
+                console.log('5. Found product:', product);
                 
                 if (!product) {
-                    console.error('Product not found. ProductId:', productId);
-                    alert('Product not found');
+                    console.error('6. Product not found! Searched for:', productId);
+                    alert('Product not found. Check console for details.');
                     return;
                 }
                 
@@ -4932,9 +4945,9 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                 }
                 
                 console.log('Updating product in Supabase:', productId, updates);
-                const success = await window.supabaseDB.updateProduct(productId, updates);
+                const result = await window.supabaseDB.updateProduct(productId, updates);
                 
-                if (success) {
+                if (result && result.success) {
                     console.log('Product updated successfully in cloud database:', productId, updates);
                     
                     // Trigger a custom event to notify all clients about the update
@@ -4947,7 +4960,7 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                     return true;
                 }
                 
-                console.error('Failed to update product in Supabase');
+                console.error('Failed to update product in Supabase:', result?.error);
                 return false;
                 
             } catch (error) {
