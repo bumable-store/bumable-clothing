@@ -3868,6 +3868,8 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                 }
 
                 console.log('Creating product rows from cloud data...');
+                console.log('Sample product before rendering:', products[0]);
+                console.log('Product ID field:', products[0]?.id, 'Product_ID field:', products[0]?.product_id);
                 tbody.innerHTML = products.map(product => createAdminProductRow(product)).join('');
                 console.log('Products displayed successfully from cloud database');
                 
@@ -3882,6 +3884,10 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
 
         // Create admin product table row (Supabase data structure)
         function createAdminProductRow(product) {
+            // Get product ID - prefer numeric id, fallback to product_id
+            const productId = product.id || product.product_id || 'unknown';
+            console.log('Creating row for product:', product.name, 'ID:', productId, 'Raw product:', product);
+            
             const stockStatus = product.stock_count <= 0 ? 'Out of Stock' : 
                                product.stock_count <= 10 ? 'Low Stock' : 'In Stock';
             const stockClass = product.stock_count <= 0 ? 'status-cancelled' : 
@@ -3904,32 +3910,32 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                     <td>${product.category}</td>
                     <td>
                         <input type="number" value="${product.regular_price}" min="0" step="0.01" 
-                               onchange="quickUpdatePrice('${product.id}', this.value, true)"
+                               onchange="quickUpdatePrice('${productId}', this.value, true)"
                                style="width: 80px; padding: 4px; border: 1px solid #ddd; border-radius: 3px;">
                     </td>
                     <td>
                         <input type="number" value="${product.sale_price || ''}" min="0" step="0.01" 
                                placeholder="No sale"
-                               onchange="quickUpdateSalePrice('${product.id}', this.value)"
+                               onchange="quickUpdateSalePrice('${productId}', this.value)"
                                style="width: 80px; padding: 4px; border: 1px solid #ddd; border-radius: 3px;">
                         ${product.on_sale ? '<span class="status-badge status-confirmed" style="margin-left: 5px;">SALE</span>' : ''}
                     </td>
                     <td>
                         <input type="number" value="${product.stock_count}" min="0" 
-                               onchange="quickUpdateStock('${product.id}', this.value)"
+                               onchange="quickUpdateStock('${productId}', this.value)"
                                style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 3px;">
                     </td>
                     <td>
                         <span class="status-badge ${stockClass}">${stockStatus}</span>
                     </td>
                     <td>
-                        <button class="action-btn btn-primary" onclick="editProductDetails('${product.id}')" title="Edit Details">
+                        <button class="action-btn btn-primary" onclick="editProductDetails('${productId}')" title="Edit Details">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="action-btn btn-warning" onclick="toggleProductSale('${product.id}')" title="Toggle Sale">
+                        <button class="action-btn btn-warning" onclick="toggleProductSale('${productId}')" title="Toggle Sale">
                             <i class="fas fa-tag"></i>
                         </button>
-                        <button class="action-btn btn-danger" onclick="deleteProductConfirm('${product.id}')" title="Delete Product">
+                        <button class="action-btn btn-danger" onclick="deleteProductConfirm('${productId}')" title="Delete Product">
                             <i class="fas fa-trash"></i>
                         </button>
                     </td>
