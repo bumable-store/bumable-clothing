@@ -3782,7 +3782,8 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                     return;
                 }
                 
-                const products = await window.supabaseDB.getAllProducts();
+                const result = await window.supabaseDB.getAllProducts();
+                const products = result.products || [];
                 const inStockCount = products.filter(p => p.in_stock && p.stock_count > 0).length;
                 const lowStockCount = products.filter(p => p.stock_count <= 10 && p.stock_count > 0).length;
                 const outOfStockCount = products.filter(p => !p.in_stock || p.stock_count === 0).length;
@@ -3846,7 +3847,8 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             console.log('Displaying admin products from Supabase...');
             
             try {
-                const products = await window.supabaseDB.getAllProducts();
+                const result = await window.supabaseDB.getAllProducts();
+                const products = result.products || [];
                 console.log('Products loaded from Supabase:', products.length, products);
                 
                 const tbody = document.getElementById('admin-products-tbody');
@@ -4007,7 +4009,8 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
 
         async function toggleProductSale(productId) {
             try {
-                const products = await window.supabaseDB.getAllProducts();
+                const result = await window.supabaseDB.getAllProducts();
+                const products = result.products || [];
                 const product = products.find(p => p.id === productId);
                 if (!product) return;
                 
@@ -4034,7 +4037,8 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
 
         async function deleteProductConfirm(productId) {
             try {
-                const products = await window.supabaseDB.getAllProducts();
+                const result = await window.supabaseDB.getAllProducts();
+                const products = result.products || [];
                 const product = products.find(p => p.id === productId);
                 if (!product) return;
                 
@@ -4055,7 +4059,8 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
 
         async function editProductDetails(productId) {
             try {
-                const products = await window.supabaseDB.getAllProducts();
+                const result = await window.supabaseDB.getAllProducts();
+                const products = result.products || [];
                 const product = products.find(p => p.id === productId);
                 if (!product) {
                     alert('Product not found');

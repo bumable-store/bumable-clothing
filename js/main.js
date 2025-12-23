@@ -156,7 +156,8 @@ async function updateProductDisplay() {
         }
         
         console.log('Loading products from cloud database...');
-        const products = await window.supabaseDB.getAllProducts();
+        const result = await window.supabaseDB.getAllProducts();
+        const products = result.products || [];
         console.log('Loaded', products.length, 'products from Supabase');
         
         // Update home page if we're on it

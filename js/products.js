@@ -33,7 +33,8 @@ class ProductManager {
         if (window.supabaseDB && window.supabaseDB.client) {
             try {
                 this.loading = true;
-                const dbProducts = await window.supabaseDB.getAllProducts();
+                const result = await window.supabaseDB.getAllProducts();
+                const dbProducts = result.products || [];
                 
                 if (dbProducts && dbProducts.length > 0) {
                     // Map snake_case database fields to camelCase
@@ -130,7 +131,8 @@ class ProductManager {
     // Refresh products from database
     async refreshProducts() {
         try {
-            const dbProducts = await window.supabaseDB.getAllProducts();
+            const result = await window.supabaseDB.getAllProducts();
+            const dbProducts = result.products || [];
             
             if (dbProducts && dbProducts.length > 0) {
                 this.products = dbProducts.map(p => ({
