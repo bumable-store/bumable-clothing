@@ -4011,7 +4011,7 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             try {
                 const result = await window.supabaseDB.getAllProducts();
                 const products = result.products || [];
-                const product = products.find(p => p.id === productId);
+                const product = products.find(p => p.id === productId || p.product_id === productId || String(p.id) === String(productId) || String(p.product_id) === String(productId));
                 if (!product) return;
                 
                 const newSaleStatus = !product.on_sale;
@@ -4039,7 +4039,7 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             try {
                 const result = await window.supabaseDB.getAllProducts();
                 const products = result.products || [];
-                const product = products.find(p => p.id === productId);
+                const product = products.find(p => p.id === productId || p.product_id === productId || String(p.id) === String(productId) || String(p.product_id) === String(productId));
                 if (!product) return;
                 
                 if (confirm(`Are you sure you want to delete "${product.name}"?\n\nThis action cannot be undone and will affect all devices instantly.`)) {
@@ -4061,8 +4061,14 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             try {
                 const result = await window.supabaseDB.getAllProducts();
                 const products = result.products || [];
-                const product = products.find(p => p.id === productId);
+                console.log('Looking for product with ID:', productId);
+                console.log('Available products:', products.map(p => ({ id: p.id, product_id: p.product_id })));
+                
+                // Check both id and product_id fields
+                const product = products.find(p => p.id === productId || p.product_id === productId || String(p.id) === String(productId) || String(p.product_id) === String(productId));
+                
                 if (!product) {
+                    console.error('Product not found. ProductId:', productId);
                     alert('Product not found');
                     return;
                 }
