@@ -3019,20 +3019,6 @@ Tiruppur, Tamilnadu
                 await loadAdminData();
                 updateLastUpdated();
                 
-                // Initialize deployment system if Supabase is ready
-                // Temporarily disabled - function order issue
-                /*
-                if (supabaseReady) {
-                    console.log('Initializing deployment system...');
-                    try {
-                        await initializeDeploymentSystem();
-                        console.log('✅ Deployment system initialized');
-                    } catch (error) {
-                        console.error('⚠️ Deployment system initialization failed:', error);
-                    }
-                }
-                */
-                
                 // Initialize product sync
                 initializeProductSync();
                 
