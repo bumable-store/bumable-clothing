@@ -3901,32 +3901,32 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                     <td>${product.category}</td>
                     <td>
                         <input type="number" value="${product.regular_price}" min="0" step="0.01" 
-                               onchange="quickUpdatePrice('${product.id}', this.value, true)"
+                               onchange="quickUpdatePrice('${product.product_id || product.id}', this.value, true)"
                                style="width: 80px; padding: 4px; border: 1px solid #ddd; border-radius: 3px;">
                     </td>
                     <td>
                         <input type="number" value="${product.sale_price || ''}" min="0" step="0.01" 
                                placeholder="No sale"
-                               onchange="quickUpdateSalePrice('${product.id}', this.value)"
+                               onchange="quickUpdateSalePrice('${product.product_id || product.id}', this.value)"
                                style="width: 80px; padding: 4px; border: 1px solid #ddd; border-radius: 3px;">
                         ${product.on_sale ? '<span class="status-badge status-confirmed" style="margin-left: 5px;">SALE</span>' : ''}
                     </td>
                     <td>
                         <input type="number" value="${product.stock_count}" min="0" 
-                               onchange="quickUpdateStock('${product.id}', this.value)"
+                               onchange="quickUpdateStock('${product.product_id || product.id}', this.value)"
                                style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 3px;">
                     </td>
                     <td>
                         <span class="status-badge ${stockClass}">${stockStatus}</span>
                     </td>
                     <td>
-                        <button class="action-btn btn-primary" onclick="editProductDetails('${product.id}')" title="Edit Details">
+                        <button class="action-btn btn-primary" onclick="editProductDetails('${product.product_id || product.id}')" title="Edit Details">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="action-btn btn-warning" onclick="toggleProductSale('${product.id}')" title="Toggle Sale">
+                        <button class="action-btn btn-warning" onclick="toggleProductSale('${product.product_id || product.id}')" title="Toggle Sale">
                             <i class="fas fa-tag"></i>
                         </button>
-                        <button class="action-btn btn-danger" onclick="deleteProductConfirm('${product.id}')" title="Delete Product">
+                        <button class="action-btn btn-danger" onclick="deleteProductConfirm('${product.product_id || product.id}')" title="Delete Product">
                             <i class="fas fa-trash"></i>
                         </button>
                     </td>
