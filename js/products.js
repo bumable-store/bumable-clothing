@@ -6,7 +6,7 @@ class ProductManager {
         this.products = [];
         this.loading = true;
         this.initialized = false;
-        this.cacheTTL = 10 * 60 * 1000; // 10 minutes
+        this.cacheTTL = 0; // No caching - always fetch fresh data for instant sync
         
         // Initialize products from Supabase
         this.init();
@@ -97,27 +97,35 @@ class ProductManager {
                         table: 'products'
                     },
                     async (payload) => {
-                        window.Logger?.info('Product update received:', payload.eventType);
+                        window.Logger?.info('🔄 Product update received:', payload.eventType);
                         
-                        // Refresh products from database
+                        // IMMEDIATE cache clearing for instant sync
+                        window.CacheManager?.remove('products');
+                        
+                        // Refresh products from database immediately
                         await this.refreshProducts();
-                        
-                        // Clear cache to force reload
-                        window.CacheManager?.delete('products');
                         
                         // Notify user of changes
                         if (payload.eventType === 'INSERT') {
-                            window.Logger?.success(`New product added: ${payload.new.name}`);
+                            window.Logger?.success(`✨ New product added: ${payload.new.name}`);
                         } else if (payload.eventType === 'UPDATE') {
-                            window.Logger?.info(`Product updated: ${payload.new.name}`);
+                            window.Logger?.info(`✅ Product updated: ${payload.new.name}`);
                         } else if (payload.eventType === 'DELETE') {
-                            window.Logger?.info(`Product deleted`);
+                            window.Logger?.info(`🗑️ Product deleted`);
                         }
                         
-                        // Trigger page refresh if we're on shop page
-                        if (window.location.pathname.includes('shop') && typeof displayProducts === 'function') {
-                            displayProducts();
+                        // INSTANT page refresh - check all possible function names
+                        if (window.location.pathname.includes('shop')) {
+                            if (typeof displayProducts === 'function') {
+                                displayProducts();
+                            } else if (typeof loadProducts === 'function') {
+                                loadProducts();
+                            } else if (typeof window.loadProducts === 'function') {
+                                window.loadProducts();
+                            }
                         }
+                        
+                        console.log('🔄 Shop synced with admin changes in real-time');
                     }
                 )
                 .subscribe();
@@ -131,6 +139,7 @@ class ProductManager {
     // Refresh products from database
     async refreshProducts() {
         try {
+            console.log('🔄 Fetching products from database...');
             const result = await window.supabaseDB.getAllProducts();
             const dbProducts = result.products || [];
             
@@ -149,11 +158,12 @@ class ProductManager {
                     availableSizes: p.available_sizes
                 }));
                 
-                // Update cache
-                window.CacheManager?.set('products', this.products, this.cacheTTL);
-                window.Logger?.success(`Refreshed ${this.products.length} products`);
+                // NO caching - always fresh data for instant admin sync
+                console.log(`✅ Refreshed ${this.products.length} products from database`);
+                window.Logger?.success(`Refreshed ${this.products.length} products from database`);
             }
         } catch (error) {
+            console.error('❌ Error refreshing products:', error);
             window.Logger?.error('Error refreshing products:', error);
         }
     }

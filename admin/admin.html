@@ -502,6 +502,17 @@
             }
         }
 
+        @keyframes slideOut {
+            from { 
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to { 
+                opacity: 0;
+                transform: translateX(100px);
+            }
+        }
+
         .status-badge {
             padding: 4px 12px;
             border-radius: 15px;
@@ -531,6 +542,7 @@
 
         .btn-primary { background: #ff6b6b; color: white; }
         .btn-success { background: #28a745; color: white; }
+        .btn-info { background: #17a2b8; color: white; }
         .btn-warning { background: #ffc107; color: #212529; }
         .btn-danger { background: #dc3545; color: white; }
 
@@ -2294,12 +2306,6 @@
                     <button class="action-btn btn-success" onclick="showAddProductForm()">
                         <i class="fas fa-plus"></i> Add Product
                     </button>
-                    <button class="action-btn btn-primary" onclick="forceSyncProducts()">
-                        <i class="fas fa-sync-alt"></i> Sync
-                    </button>
-                    <button class="action-btn btn-warning" onclick="adminExportProducts()">
-                        <i class="fas fa-download"></i> Export
-                    </button>
                 </div>
             </div>
             <div class="section-content">
@@ -2962,7 +2968,7 @@ Tiruppur, Tamilnadu
     <!-- Load Supabase SDK and database scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../js/logger.js"></script>
-    <script src="../js/supabase-db.js"></script>
+    <script src="../js/supabase-db.js?v=20251224c"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/products.js"></script>
     <script src="vercel-deploy.js"></script>
@@ -3016,6 +3022,7 @@ Tiruppur, Tamilnadu
                     return; // Redirected to login
                 }
                 
+                console.log('Loading admin data with Supabase...');
                 await loadAdminData();
                 updateLastUpdated();
                 
@@ -3024,7 +3031,7 @@ Tiruppur, Tamilnadu
                 
                 // Show dashboard by default
                 showSection('dashboard');
-            }, 1000);
+            }, 2000); // Increased timeout to ensure Supabase is ready
         });
 
         // Check admin authentication
@@ -3772,7 +3779,20 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                 }
                 
                 const result = await window.supabaseDB.getAllProducts();
-                const products = result.products || [];
+                console.log('updateProductStats - result:', result);
+                
+                // Handle different result structures
+                let products = [];
+                if (Array.isArray(result)) {
+                    products = result;
+                } else if (result && result.products) {
+                    products = result.products;
+                } else if (result && result.data) {
+                    products = result.data;
+                }
+                
+                console.log('updateProductStats - products count:', products.length);
+                
                 const inStockCount = products.filter(p => p.in_stock && p.stock_count > 0).length;
                 const lowStockCount = products.filter(p => p.stock_count <= 10 && p.stock_count > 0).length;
                 const outOfStockCount = products.filter(p => !p.in_stock || p.stock_count === 0).length;
@@ -3813,11 +3833,19 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             try {
                 // Ensure database connection
                 if (!window.supabaseDB) {
-                    console.log('Waiting for Supabase connection...');
+                    console.log('Waiting for Supabase DB instance...');
                     setTimeout(loadAdminProducts, 500);
                     return;
                 }
                 
+                // Wait for Supabase to be ready
+                if (!window.supabaseDB.isReady()) {
+                    console.log('Waiting for Supabase connection to be ready...');
+                    setTimeout(loadAdminProducts, 500);
+                    return;
+                }
+                
+                console.log('Supabase is ready, loading products...');
                 await updateProductStats();
                 await displayAdminProducts();
                 console.log('Admin products loaded successfully from cloud database');
@@ -3837,8 +3865,30 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             
             try {
                 const result = await window.supabaseDB.getAllProducts();
-                const products = result.products || [];
-                console.log('Products loaded from Supabase:', products.length, products);
+                console.log('Raw result from getAllProducts:', result);
+                console.log('result.success:', result.success);
+                console.log('result.products:', result.products);
+                console.log('result type:', typeof result);
+                
+                // Handle different possible result structures
+                let products = [];
+                if (Array.isArray(result)) {
+                    // If result is directly an array
+                    products = result;
+                    console.log('Result is array, using directly');
+                } else if (result && result.products) {
+                    // If result has products property
+                    products = result.products;
+                    console.log('Using result.products');
+                } else if (result && result.data) {
+                    // If result has data property (direct Supabase response)
+                    products = result.data;
+                    console.log('Using result.data');
+                } else {
+                    console.error('Unexpected result structure:', result);
+                }
+                
+                console.log('Final products array:', products.length, products);
                 
                 const tbody = document.getElementById('admin-products-tbody');
                 
@@ -3870,9 +3920,12 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
 
         // Create admin product table row (Supabase data structure)
         function createAdminProductRow(product) {
-            // Get product ID - prefer numeric id, fallback to product_id
-            const productId = product.id || product.product_id || 'unknown';
-            console.log('Creating row for product:', product.name, 'ID:', productId, 'Raw product:', product);
+            // MUST use numeric id for database operations
+            if (!product.id) {
+                console.error('⚠️ Product missing numeric id field:', product);
+            }
+            const productId = product.id; // Always use numeric ID
+            console.log('Creating row for product:', product.name, 'Numeric ID:', productId, 'Product_ID:', product.product_id);
             
             const stockStatus = product.stock_count <= 0 ? 'Out of Stock' : 
                                product.stock_count <= 10 ? 'Low Stock' : 'In Stock';
@@ -3929,51 +3982,109 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             `;
         }
 
+        // Show notification message
+        function showNotification(message, type = 'success') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `admin-notification ${type}`;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 14px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
         // Quick update functions using Supabase
         async function quickUpdatePrice(productId, newPrice, isRegular = true) {
             try {
                 const price = parseFloat(newPrice);
                 if (isNaN(price) || price < 0) {
-                    alert('Please enter a valid price');
+                    showNotification('Please enter a valid price', 'error');
                     await loadAdminProducts(); // Reload to reset
                     return;
                 }
                 
+                showNotification('Saving to database...', 'info');
                 const updates = isRegular ? { regular_price: price } : { sale_price: price };
                 
                 const success = await adminUpdateProduct(productId, updates);
                 if (success) {
                     console.log(`Updated ${isRegular ? 'regular' : 'sale'} price for ${productId}: ₹${price}`);
+                    
+                    // Clear products cache so shop page gets fresh data
+                    if (window.CacheManager) {
+                        window.CacheManager.remove('products');
+                        console.log('🔄 Cleared products cache - shop will show updated prices');
+                    }
+                    
+                    showNotification(`✅ Price updated to ₹${price}`, 'success');
                     await updateProductStats(); // Update stats after successful change
                 } else {
-                    alert('Failed to update price');
+                    showNotification('Failed to update price in database', 'error');
                     await loadAdminProducts();
                 }
             } catch (error) {
                 console.error('Error updating price:', error);
-                alert('Error updating price. Please try again.');
+                showNotification('Error updating price. Please try again.', 'error');
                 await loadAdminProducts();
             }
         }
 
         async function quickUpdateSalePrice(productId, newPrice) {
             try {
+                showNotification('Saving to database...', 'info');
                 if (newPrice === '' || newPrice == '0') {
                     // Remove sale
-                    await adminUpdateProduct(productId, { sale_price: null, on_sale: false });
+                    const success = await adminUpdateProduct(productId, { sale_price: null, on_sale: false });
+                    if (success) {
+                        showNotification('✅ Sale price removed', 'success');
+                    } else {
+                        showNotification('Failed to update sale price', 'error');
+                    }
                 } else {
                     const price = parseFloat(newPrice);
                     if (isNaN(price) || price < 0) {
-                        alert('Please enter a valid sale price');
+                        showNotification('Please enter a valid sale price', 'error');
                         await loadAdminProducts();
                         return;
                     }
-                    await adminUpdateProduct(productId, { sale_price: price, on_sale: true });
+                    const success = await adminUpdateProduct(productId, { sale_price: price, on_sale: true });
+                    if (success) {
+                        showNotification(`✅ Sale price set to ₹${price}`, 'success');
+                    } else {
+                        showNotification('Failed to update sale price', 'error');
+                    }
                 }
-                await loadAdminProducts();
+                await updateProductStats();
+                await displayAdminProducts();
             } catch (error) {
                 console.error('Error updating sale price:', error);
-                alert('Error updating sale price. Please try again.');
+                showNotification('Error updating sale price. Please try again.', 'error');
                 await loadAdminProducts();
             }
         }
@@ -3982,22 +4093,32 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
             try {
                 const stock = parseInt(newStock);
                 if (isNaN(stock) || stock < 0) {
-                    alert('Please enter a valid stock quantity');
+                    showNotification('Please enter a valid stock quantity', 'error');
                     await loadAdminProducts();
                     return;
                 }
                 
+                showNotification('Saving to database...', 'info');
                 const success = await adminUpdateProductStock(productId, stock);
                 if (success) {
                     console.log(`Updated stock for ${productId}: ${stock}`);
-                    await loadAdminProducts();
+                    
+                    // Clear products cache so shop page gets fresh data
+                    if (window.CacheManager) {
+                        window.CacheManager.remove('products');
+                        console.log('🔄 Cleared products cache - shop will show updated data');
+                    }
+                    
+                    showNotification(`✅ Stock updated to ${stock} units`, 'success');
+                    await updateProductStats();
+                    await displayAdminProducts();
                 } else {
-                    alert('Failed to update stock');
+                    showNotification('Failed to update stock in database', 'error');
                     await loadAdminProducts();
                 }
             } catch (error) {
                 console.error('Error updating stock:', error);
-                alert('Error updating stock. Please try again.');
+                showNotification('Error updating stock. Please try again.', 'error');
                 await loadAdminProducts();
             }
         }
@@ -4005,28 +4126,74 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
         async function toggleProductSale(productId) {
             try {
                 const result = await window.supabaseDB.getAllProducts();
-                const products = result.products || [];
-                const product = products.find(p => p.id === productId || p.product_id === productId || String(p.id) === String(productId) || String(p.product_id) === String(productId));
-                if (!product) return;
+                
+                // Handle different result structures
+                let products = [];
+                if (Array.isArray(result)) {
+                    products = result;
+                } else if (result && result.products) {
+                    products = result.products;
+                } else if (result && result.data) {
+                    products = result.data;
+                }
+                
+                const numericProductId = !isNaN(productId) ? Number(productId) : productId;
+                const product = products.find(p => 
+                    p.id === productId || 
+                    p.product_id === productId || 
+                    p.id === numericProductId ||
+                    String(p.id) === String(productId) || 
+                    String(p.product_id) === String(productId)
+                );
+                
+                if (!product) {
+                    showNotification('Product not found', 'error');
+                    return;
+                }
                 
                 const newSaleStatus = !product.on_sale;
                 
+                showNotification('Saving to database...', 'info');
                 if (newSaleStatus && !product.sale_price) {
                     const salePrice = prompt(`Enter sale price for ${product.name}:`, Math.floor(product.regular_price * 0.8));
                     if (salePrice && !isNaN(parseFloat(salePrice))) {
-                        await adminUpdateProduct(productId, { 
+                        const success = await adminUpdateProduct(productId, { 
                             sale_price: parseFloat(salePrice), 
                             on_sale: true 
                         });
-                        await loadAdminProducts();
+                        if (success) {
+                            // Clear products cache so shop page gets fresh data
+                            if (window.CacheManager) {
+                                window.CacheManager.remove('products');
+                                console.log('🔄 Cleared products cache - shop will show updated sale status');
+                            }
+                            
+                            showNotification('✅ Sale activated', 'success');
+                            await updateProductStats();
+                            await displayAdminProducts();
+                        } else {
+                            showNotification('Failed to activate sale', 'error');
+                        }
                     }
                 } else {
-                    await adminUpdateProduct(productId, { on_sale: newSaleStatus });
-                    await loadAdminProducts();
+                    const success = await adminUpdateProduct(productId, { on_sale: newSaleStatus });
+                    if (success) {
+                        // Clear products cache so shop page gets fresh data
+                        if (window.CacheManager) {
+                            window.CacheManager.remove('products');
+                            console.log('🔄 Cleared products cache - shop will show updated sale status');
+                        }
+                        
+                        showNotification(`✅ Sale ${newSaleStatus ? 'activated' : 'deactivated'}`, 'success');
+                        await updateProductStats();
+                        await displayAdminProducts();
+                    } else {
+                        showNotification('Failed to update sale status', 'error');
+                    }
                 }
             } catch (error) {
                 console.error('Error toggling sale status:', error);
-                alert('Error updating sale status. Please try again.');
+                showNotification('Error updating sale status. Please try again.', 'error');
             }
         }
 
@@ -4058,26 +4225,47 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                 console.log('1. Requested product ID:', productId, 'Type:', typeof productId);
                 
                 const result = await window.supabaseDB.getAllProducts();
-                const products = result.products || [];
+                console.log('2. Raw result:', result);
                 
-                console.log('2. Total products found:', products.length);
-                console.log('3. First product structure:', products[0]);
-                console.log('4. All product IDs:', products.map(p => ({ id: p.id, product_id: p.product_id, type_id: typeof p.id, type_product_id: typeof p.product_id })));
+                // Handle different result structures
+                let products = [];
+                if (Array.isArray(result)) {
+                    products = result;
+                } else if (result && result.products) {
+                    products = result.products;
+                } else if (result && result.data) {
+                    products = result.data;
+                }
+                
+                console.log('3. Total products found:', products.length);
+                console.log('4. First product structure:', products[0]);
+                console.log('5. All product IDs:', products.map(p => ({ 
+                    id: p.id, 
+                    product_id: p.product_id, 
+                    type_id: typeof p.id, 
+                    type_product_id: typeof p.product_id 
+                })));
+                
+                // Convert productId to number if it looks like a number
+                const numericProductId = !isNaN(productId) ? Number(productId) : productId;
+                console.log('6. Searching for ID:', productId, 'as number:', numericProductId);
                 
                 // Check both id and product_id fields with type coercion
                 const product = products.find(p => 
                     p.id === productId || 
                     p.product_id === productId || 
+                    p.id === numericProductId ||
                     String(p.id) === String(productId) || 
                     String(p.product_id) === String(productId) ||
                     Number(p.id) === Number(productId)
                 );
                 
-                console.log('5. Found product:', product);
+                console.log('7. Found product:', product);
                 
                 if (!product) {
-                    console.error('6. Product not found! Searched for:', productId);
-                    alert('Product not found. Check console for details.');
+                    console.error('8. Product not found! Searched for:', productId);
+                    console.error('Available products:', products);
+                    alert('Product not found. Please check the console for details and refresh the page.');
                     return;
                 }
                 
@@ -5104,6 +5292,56 @@ Enter new status (confirmed/processing/shipped/delivered/cancelled):`, order.sta
                 alert('Error deleting product. Please try again.');
                 return false;
             }
+        }
+
+        // Seed default products to Supabase database
+        async function seedDefaultProducts() {
+            if (!window.supabaseDB || !window.supabaseDB.isReady()) {
+                alert('Supabase database is not connected. Please refresh and try again.');
+                return;
+            }
+
+            if (!confirm('This will add 12 default Bumable products to your database.\n\nNote: This will create new products even if some already exist.\n\nContinue?')) {
+                return;
+            }
+
+            const defaultProducts = [
+                {id:'bumable-brief-cheery-red',name:'Bumable Brief – Cheery Red',regularPrice:499,salePrice:199,onSale:true,image:'../images/hero-product-1.jpg',gallery:['../images/hero-product-1.jpg'],category:'briefs',description:'Classic Bumable brief in cheery red',inStock:true,stockCount:50,availableSizes:['S','M','L','XL','XXL']},
+                {id:'bumable-brief-olive',name:'Bumable Brief – Olive',regularPrice:499,salePrice:199,onSale:true,image:'../images/hero-product-2.jpg',gallery:['../images/hero-product-2.jpg'],category:'briefs',description:'Classic Bumable brief in olive',inStock:true,stockCount:45,availableSizes:['S','M','L','XL','XXL']},
+                {id:'bumable-brief-lt-grey',name:'Bumable Brief – Lt Grey',regularPrice:499,salePrice:199,onSale:true,image:'../images/hero-product-1.jpg',gallery:['../images/hero-product-1.jpg'],category:'briefs',description:'Classic Bumable brief in light grey',inStock:true,stockCount:55,availableSizes:['S','M','L','XL','XXL']},
+                {id:'bumable-brief-navy',name:'Bumable Brief – Navy',regularPrice:499,salePrice:199,onSale:true,image:'../images/hero-product-2.jpg',gallery:['../images/hero-product-2.jpg'],category:'briefs',description:'Classic Bumable brief in navy',inStock:true,stockCount:40,availableSizes:['S','M','L','XL','XXL']},
+                {id:'bumable-brief-black',name:'Bumable Brief – Black',regularPrice:499,salePrice:199,onSale:true,image:'../images/hero-product-1.jpg',gallery:['../images/hero-product-1.jpg'],category:'briefs',description:'Classic Bumable brief in black',inStock:true,stockCount:60,availableSizes:['S','M','L','XL','XXL']},
+                {id:'tie-and-dye-brief',name:'Tie and Dye Brief',regularPrice:599,salePrice:249,onSale:true,image:'../images/products/tie-dye/tie-dye-1-main.jpg',gallery:['../images/products/tie-dye/tie-dye-1-main.jpg'],category:'tie-dye',description:'Vibrant tie-dye brief with unique patterns',inStock:true,stockCount:30,availableSizes:['S','M','L','XL','XXL']},
+                {id:'tie-and-dye-trunks',name:'Tie and Dye Trunks',regularPrice:599,salePrice:249,onSale:true,image:'../images/products/tie-dye/tie-dye-2-main.jpg',gallery:['../images/products/tie-dye/tie-dye-2-main.jpg'],category:'tie-dye',description:'Colorful tie-dye trunks with artistic designs',inStock:true,stockCount:25,availableSizes:['S','M','L','XL','XXL']},
+                {id:'solid-trunks-frozen-navy',name:'Solid Trunks – Frozen Navy',regularPrice:499,salePrice:199,onSale:true,image:'../images/products/solid/solid-navy-main.jpg',gallery:['../images/products/solid/solid-navy-main.jpg'],category:'trunks',description:'Solid navy trunks',inStock:true,stockCount:35,availableSizes:['S','M','L','XL','XXL']},
+                {id:'solid-trunks-frozen-grey',name:'Solid Trunks – Frozen Grey',regularPrice:499,salePrice:199,onSale:true,image:'../images/products/solid/solid-2-main.jpg',gallery:['../images/products/solid/solid-2-main.jpg'],category:'trunks',description:'Solid grey trunks',inStock:true,stockCount:42,availableSizes:['S','M','L','XL','XXL']},
+                {id:'solid-trunks-frozen-black',name:'Solid Trunks – Frozen Black',regularPrice:499,salePrice:199,onSale:true,image:'../images/products/solid/solid-3-main.jpg',gallery:['../images/products/solid/solid-3-main.jpg'],category:'trunks',description:'Solid black trunks',inStock:true,stockCount:38,availableSizes:['S','M','L','XL','XXL']},
+                {id:'solid-trunks-frozen-green',name:'Solid Trunks – Frozen Green',regularPrice:499,salePrice:199,onSale:true,image:'../images/products/solid/solid-4-main.jpg',gallery:['../images/products/solid/solid-4-main.jpg'],category:'trunks',description:'Solid green trunks',inStock:true,stockCount:33,availableSizes:['S','M','L','XL','XXL']},
+                {id:'solid-trunks-frozen-burgundy',name:'Solid Trunks – Frozen Burgundy',regularPrice:499,salePrice:199,onSale:true,image:'../images/products/solid/solid-5-main.jpg',gallery:['../images/products/solid/solid-5-main.jpg'],category:'trunks',description:'Solid burgundy trunks',inStock:true,stockCount:29,availableSizes:['S','M','L','XL','XXL']}
+            ];
+
+            console.log('🌱 Seeding database with default products...');
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const product of defaultProducts) {
+                try {
+                    const result = await window.supabaseDB.addProduct(product);
+                    if (result && result.success) {
+                        successCount++;
+                        console.log(`✅ Added: ${product.name}`);
+                    } else {
+                        failCount++;
+                        console.error(`❌ Failed: ${product.name}`, result?.error);
+                    }
+                } catch (error) {
+                    failCount++;
+                    console.error(`❌ Error adding ${product.name}:`, error);
+                }
+            }
+
+            alert(`Database seeding complete!\n\n✅ Successfully added: ${successCount} products\n❌ Failed: ${failCount} products\n\nRefreshing product list...`);
+            await loadAdminProducts();
         }
 
         // Reset products to defaults from admin

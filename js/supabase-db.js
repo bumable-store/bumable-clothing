@@ -488,13 +488,41 @@ class SupabaseDB {
      */
     async getAllProducts() {
         try {
+            // Check if client is ready
+            if (!this.client) {
+                console.error('Supabase client not initialized');
+                return {
+                    success: false,
+                    error: 'Database client not initialized',
+                    products: []
+                };
+            }
+
+            if (!this.connected) {
+                console.error('Supabase not connected');
+                return {
+                    success: false,
+                    error: 'Database not connected',
+                    products: []
+                };
+            }
+
             const { data, error } = await this.client
                 .from('products')
-                .select('*')
-                .eq('status', 'active')
+                .select('id, product_id, name, description, category, regular_price, sale_price, on_sale, image_url, gallery_images, in_stock, stock_count, available_sizes, featured, created_at, updated_at, status')
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
+
+            // Log first product to verify structure
+            if (data && data.length > 0) {
+                console.log('✅ Sample product from DB:', {
+                    id: data[0].id,
+                    product_id: data[0].product_id,
+                    name: data[0].name,
+                    hasNumericId: typeof data[0].id === 'number'
+                });
+            }
 
             return {
                 success: true,
@@ -525,11 +553,9 @@ class SupabaseDB {
                 sale_price: productData.sale_price || productData.salePrice || null,
                 on_sale: productData.on_sale !== undefined ? productData.on_sale : (productData.onSale || false),
                 image_url: productData.image_url || productData.image || '../images/products/default.jpg',
-                gallery_images: productData.gallery_images || productData.gallery || [],
                 in_stock: productData.in_stock !== undefined ? productData.in_stock : (productData.inStock !== undefined ? productData.inStock : true),
                 stock_count: productData.stock_count || productData.stockCount || 0,
-                available_sizes: productData.available_sizes || productData.availableSizes || [],
-                featured: productData.featured || false
+                available_sizes: productData.available_sizes || productData.availableSizes || []
             };
 
             const { data, error } = await this.client
@@ -570,7 +596,7 @@ class SupabaseDB {
                 updateData.regular_price = productData.regular_price || productData.regularPrice;
             }
             if (productData.sale_price !== undefined || productData.salePrice !== undefined) {
-                updateData.sale_price = productData.sale_price || productData.salePrice || null;
+                updateData.sale_price = productData.sale_price !== undefined ? productData.sale_price : (productData.salePrice || null);
             }
             if (productData.on_sale !== undefined || productData.onSale !== undefined) {
                 updateData.on_sale = productData.on_sale !== undefined ? productData.on_sale : productData.onSale;
@@ -578,30 +604,76 @@ class SupabaseDB {
             if (productData.image_url !== undefined || productData.image !== undefined) {
                 updateData.image_url = productData.image_url || productData.image;
             }
-            if (productData.gallery_images !== undefined || productData.gallery !== undefined) {
-                updateData.gallery_images = productData.gallery_images || productData.gallery;
-            }
             if (productData.in_stock !== undefined || productData.inStock !== undefined) {
                 updateData.in_stock = productData.in_stock !== undefined ? productData.in_stock : productData.inStock;
             }
             if (productData.stock_count !== undefined || productData.stockCount !== undefined) {
-                updateData.stock_count = productData.stock_count || productData.stockCount;
+                updateData.stock_count = productData.stock_count !== undefined ? productData.stock_count : productData.stockCount;
             }
             if (productData.available_sizes !== undefined || productData.availableSizes !== undefined) {
                 updateData.available_sizes = productData.available_sizes || productData.availableSizes;
             }
-            if (productData.featured !== undefined) updateData.featured = productData.featured;
+            if (productData.gallery_images !== undefined || productData.galleryImages !== undefined) {
+                updateData.gallery_images = productData.gallery_images || productData.galleryImages;
+            }
             
             updateData.updated_at = new Date().toISOString();
 
-            const { data, error } = await this.client
-                .from('products')
-                .update(updateData)
-                .eq('id', productId)
-                .select();
+            console.log('🔍 Updating product:', productId, 'Type:', typeof productId, 'with data:', updateData);
 
-            if (error) throw error;
+            // Try to update by numeric id first, then fallback to product_id
+            let query, data, error;
+            
+            // Always try numeric ID first if productId is a number or numeric string
+            if (!isNaN(productId)) {
+                console.log('Attempting update with numeric id:', parseInt(productId));
+                const result = await this.client
+                    .from('products')
+                    .update(updateData)
+                    .eq('id', parseInt(productId))
+                    .select();
+                
+                data = result.data;
+                error = result.error;
+                
+                // If not found by id, try by product_id as fallback
+                if (!error && (!data || data.length === 0)) {
+                    console.log('Not found by numeric id, trying product_id:', productId);
+                    const fallbackResult = await this.client
+                        .from('products')
+                        .update(updateData)
+                        .eq('product_id', String(productId))
+                        .select();
+                    
+                    data = fallbackResult.data;
+                    error = fallbackResult.error;
+                }
+            } else {
+                // Use product_id for string identifiers
+                console.log('Using product_id field:', productId);
+                const result = await this.client
+                    .from('products')
+                    .update(updateData)
+                    .eq('product_id', productId)
+                    .select();
+                
+                data = result.data;
+                error = result.error;
+            }
 
+            if (error) {
+                console.error('❌ Supabase update error:', error);
+                throw error;
+            }
+
+            if (!data || data.length === 0) {
+                console.error('❌ Product not found with ID:', productId);
+                console.error('Tried numeric id:', !isNaN(productId) ? parseInt(productId) : 'N/A');
+                console.error('Tried product_id:', productId);
+                throw new Error(`Product not found with ID: ${productId}`);
+            }
+
+            console.log('✅ Product updated successfully:', data[0]);
             window.Logger?.info('Product updated successfully:', data[0]);
 
             return {
@@ -848,106 +920,6 @@ class SupabaseDB {
      */
     static isConfigured() {
         return localStorage.getItem('supabase_url') && localStorage.getItem('supabase_key');
-    }
-
-    // ===== PRODUCT MANAGEMENT METHODS =====
-
-    /**
-     * Get all products from database
-     */
-    async getAllProducts() {
-        try {
-            const { data, error } = await this.client
-                .from('products')
-                .select('*')
-                .eq('status', 'active')
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
-            return data || [];
-        } catch (error) {
-            window.Logger?.error('Error fetching products:', error);
-            return [];
-        }
-    }
-
-    /**
-     * Get a single product by ID
-     */
-    async getProduct(productId) {
-        try {
-            const { data, error} = await this.client
-                .from('products')
-                .select('*')
-                .eq('product_id', productId)
-                .single();
-
-            if (error) throw error;
-            return data;
-        } catch (error) {
-            window.Logger?.error('Error fetching product:', error);
-            return null;
-        }
-    }
-
-    /**
-     * Get products by category
-     */
-    async getProductsByCategory(category) {
-        try {
-            const { data, error } = await this.client
-                .from('products')
-                .select('*')
-                .eq('category', category)
-                .eq('status', 'active')
-                .order('name');
-
-            if (error) throw error;
-            return data || [];
-        } catch (error) {
-            window.Logger?.error('Error fetching products by category:', error);
-            return [];
-        }
-    }
-
-    /**
-     * Update an existing product
-     */
-    async updateProduct(productId, updates) {
-        try {
-            const updateData = {};
-            
-            // Map camelCase to snake_case
-            if (updates.name !== undefined) updateData.name = updates.name;
-            if (updates.description !== undefined) updateData.description = updates.description;
-            if (updates.category !== undefined) updateData.category = updates.category;
-            if (updates.regularPrice !== undefined) updateData.regular_price = updates.regularPrice;
-            if (updates.regular_price !== undefined) updateData.regular_price = updates.regular_price;
-            if (updates.salePrice !== undefined) updateData.sale_price = updates.salePrice;
-            if (updates.sale_price !== undefined) updateData.sale_price = updates.sale_price;
-            if (updates.onSale !== undefined) updateData.on_sale = updates.onSale;
-            if (updates.on_sale !== undefined) updateData.on_sale = updates.on_sale;
-            if (updates.image !== undefined) updateData.image_url = updates.image;
-            if (updates.image_url !== undefined) updateData.image_url = updates.image_url;
-            if (updates.inStock !== undefined) updateData.in_stock = updates.inStock;
-            if (updates.in_stock !== undefined) updateData.in_stock = updates.in_stock;
-            if (updates.stockCount !== undefined) updateData.stock_count = updates.stockCount;
-            if (updates.stock_count !== undefined) updateData.stock_count = updates.stock_count;
-            if (updates.availableSizes !== undefined) updateData.available_sizes = updates.availableSizes;
-            if (updates.available_sizes !== undefined) updateData.available_sizes = updates.available_sizes;
-
-            const { data, error } = await this.client
-                .from('products')
-                .update(updateData)
-                .eq('product_id', productId)
-                .select();
-
-            if (error) throw error;
-            return { success: true, data: data[0] };
-        } catch (error) {
-            window.Logger?.error('Error updating product:', error);
-            return { success: false, error: error.message };
-        }
     }
 }
 
